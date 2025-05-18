@@ -1,15 +1,30 @@
 # sticker-bot
 
+![Hackatime badge](https://hackatime-badge.hackclub.com/U079QLTJZ7H/sticker-bot)
+
+A Slack bot that lets you make large emoji images! (I call them stickers, like stickers in other communication apps)
+
+**Inspired by [emojibot](https://github.com/taciturnaxolotl/emojibot)!**
+
+## Setup
+
+You will need [Bun](https://bun.sh) to run this bot.
+
+To setup the `.env` file:
+
+```bash
+cp .env.example .env
+$EDITOR .env # add the requested environment variables!
+```
+
 To install dependencies:
 
 ```bash
 bun install
 ```
 
-To run:
+To start:
 
 ```bash
-bun run index.ts
+bun start
 ```
-
-This project was created using `bun init` in bun v1.2.11. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
