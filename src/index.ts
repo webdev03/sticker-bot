@@ -1,6 +1,6 @@
 import { App } from "@slack/bolt";
-import { Jimp } from "jimp";
-import { isImageFile } from "./utils";
+import { Jimp, ResizeStrategy } from "jimp";
+import { isImageFile, randomChars, uploadEmoji } from "./utils";
 
 const ALLOWED_CHANNELS = process.env["SLACK_CHANNELS"]!.split(",") // split comma-separated list
   .map((x) => x.trim()); // trim whitespace
@@ -34,12 +34,22 @@ app.message(async ({ client, message }) => {
     message.text.length < 1 ||
     message.text
       .split("")
-      .filter((x) => !"abcdefghijklmnopqrstuvwxyz-_+'".includes(x)).length !== 0
+      .filter((x) => !"abcdefghijklmnopqrstuvwxyz1234567890-_+'".includes(x))
+      .length !== 0
   ) {
     await client.chat.postMessage({
       channel: message.channel,
       thread_ts: message.ts,
       text: "your message text is the name of your sticker! it must be fully lowercase and have no punctuation!",
+    });
+    return;
+  }
+
+  if (message.text.length > 50) {
+    await client.chat.postMessage({
+      channel: message.channel,
+      thread_ts: message.ts,
+      text: "your sticker name is too long! please make it shorter (less than or equal to 50 chars)",
     });
     return;
   }
@@ -136,14 +146,93 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
 
   if (!message) throw new Error("message not found!");
 
+  if (message.user !== body.user.id) {
+    await client.chat.postEphemeral({
+      channel: body.channel.id,
+      thread_ts: message.ts,
+      user: body.user.id,
+      text: `you don't have permission to click that button!!`,
+    });
+    return;
+  }
+
   const file = message.files![0]!;
 
   const title = message.text;
   if (!title) return;
 
-  const image = await Jimp.read(file.url_private!);
+  const image = await Jimp.fromBuffer(
+    await (
+      await fetch(file.url_private!, {
+        method: "GET",
+        headers: {
+          // We aren't using `Jimp.read()` because we need to pass the Authorization header
+          Authorization: "Bearer " + process.env.SLACK_BOT_TOKEN,
+        },
+      })
+    ).arrayBuffer(),
+  );
 
-  // TODO: Logic
+  await client.chat.delete({
+    channel: body.channel.id,
+    ts: body.message.ts,
+  });
+
+  // This reaction is supposed to show that the sticker is being processed
+  await client.reactions.add({
+    channel: body.channel.id,
+    name: "thinking_face",
+    timestamp: message.ts!,
+  });
+
+  let emojis: string[] = [];
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const buf = await image
+        .clone()
+        .crop({
+          x: Math.floor((image.width / width) * x),
+          y: Math.floor((image.height / height) * y),
+          w: Math.floor(image.width / width),
+          h: Math.floor(image.height / height),
+        })
+        .resize({
+          // Recommended slack emoji size is 128x128
+          h: 128,
+          w: 128,
+          mode: ResizeStrategy.BILINEAR,
+        })
+        .getBuffer("image/png");
+
+      const emojiName = `${title}-${x + 1}-${y + 1}-${randomChars()}`;
+      app.logger.info("trying to upload " + emojiName + " for " + body.user.id);
+      await uploadEmoji(emojiName, body.team!.domain, buf);
+      emojis.push(emojiName);
+    }
+  }
+
+  if (!body.team) throw new Error("no body.team !!");
+
+  try {
+    await client.reactions.remove({
+      channel: body.channel.id,
+      name: "thinking_face",
+      timestamp: message.ts!,
+    });
+  } catch {}
+
+  await client.chat.postMessage({
+    channel: body.channel.id,
+    thread_ts: message.ts,
+    text: emojis
+      .map((x) => `:${x}:`)
+      .map((x, i) => {
+        if ((i + 1) % width === 0) return x + "\n";
+        return x;
+      })
+      .join(""),
+  });
 });
 
 await app.start();
