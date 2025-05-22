@@ -1,6 +1,5 @@
 import { App } from "@slack/bolt";
-import { Jimp, ResizeStrategy } from "jimp";
-import { isImageFile, randomChars, uploadEmoji } from "./utils";
+import { createSticker, isImageFile } from "./utils";
 
 const ALLOWED_CHANNELS = process.env["SLACK_CHANNELS"]!.split(",") // split comma-separated list
   .map((x) => x.trim()); // trim whitespace
@@ -112,9 +111,192 @@ app.message(async ({ client, message }) => {
             value: "4x4",
             action_id: "4x4",
           },
+          {
+            type: "button",
+            text: {
+              type: "plain_text",
+              emoji: true,
+              text: "Custom",
+            },
+            value: "Custom",
+            action_id: "custom",
+          },
         ],
       },
     ],
+  });
+});
+
+app.action("custom", async ({ client, action, body, ack }) => {
+  await ack();
+  if (
+    action.type !== "button" ||
+    !action.value ||
+    body.type !== "block_actions" ||
+    !body.actions[0] ||
+    !body.channel ||
+    !body.message
+  )
+    return;
+
+  const message = (
+    await client.conversations.history({
+      channel: body.channel.id,
+      latest: body.message.thread_ts, // it exists!
+      inclusive: true,
+      limit: 1,
+    })
+  )?.messages?.[0];
+
+  if (!message) throw new Error("message not found!");
+
+  if (message.user !== body.user.id) {
+    await client.chat.postEphemeral({
+      channel: body.channel.id,
+      thread_ts: message.ts,
+      user: body.user.id,
+      text: `you don't have permission to click that button!!`,
+    });
+    return;
+  }
+
+  const file = message.files![0]!;
+
+  const title = message.text;
+  if (!title) return;
+
+  await client.chat.delete({
+    channel: body.channel.id,
+    ts: body.message.ts,
+  });
+
+  await client.views.open({
+    trigger_id: body.trigger_id,
+    view: {
+      type: "modal",
+      // View identifier
+      callback_id: "custom_dimensions",
+      title: {
+        type: "plain_text",
+        text: "Sticker Dimensions",
+      },
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "Please select the width and height of the sticker",
+          },
+        },
+        {
+          type: "input",
+          block_id: "width",
+          label: {
+            type: "plain_text",
+            text: "Width of the sticker:",
+          },
+          element: {
+            type: "number_input",
+            action_id: "width",
+            min_value: "2",
+            max_value: "8",
+            is_decimal_allowed: false,
+          },
+        },
+        {
+          type: "input",
+          block_id: "height",
+          label: {
+            type: "plain_text",
+            text: "Height of the sticker:",
+          },
+          element: {
+            type: "number_input",
+            action_id: "height",
+            min_value: "2",
+            max_value: "8",
+            is_decimal_allowed: false,
+          },
+        },
+      ],
+      submit: {
+        type: "plain_text",
+        text: "Create",
+      },
+      private_metadata: body.channel.id + ";;" + message.ts,
+    },
+  });
+});
+
+app.view("custom_dimensions", async ({ client, body, view, ack }) => {
+  await ack();
+  if (body.type !== "view_submission") return;
+  const width = Number(view.state.values.width?.width?.value);
+  const height = Number(view.state.values.height?.height?.value);
+  if (!width || Number.isNaN(width) || !height || Number.isNaN(height)) return;
+
+  const [channelId, messageTs] = view.private_metadata.split(";;");
+  if (!channelId || !messageTs) return;
+
+  const message = (
+    await client.conversations.history({
+      channel: channelId,
+      latest: messageTs,
+      inclusive: true,
+      limit: 1,
+    })
+  )?.messages?.[0];
+
+  if (!message) throw new Error("message not found!");
+
+  if (message.user !== body.user.id) {
+    await client.chat.postEphemeral({
+      channel: channelId,
+      thread_ts: message.ts,
+      user: body.user.id,
+      text: `you don't have permission to click that button!!`,
+    });
+    return;
+  }
+
+  const file = message.files![0]!;
+
+  const title = message.text;
+  if (!title) return;
+
+  // This reaction is supposed to show that the sticker is being processed
+  await client.reactions.add({
+    channel: channelId,
+    name: "thinking_face",
+    timestamp: message.ts!,
+  });
+
+  const emojis = await createSticker(
+    file.url_private!,
+    body.team!.domain,
+    title,
+    width,
+    height,
+  );
+
+  try {
+    await client.reactions.remove({
+      channel: channelId,
+      name: "thinking_face",
+      timestamp: message.ts!,
+    });
+  } catch {}
+
+  await client.chat.postMessage({
+    channel: channelId,
+    thread_ts: message.ts,
+    text: emojis
+      .map((x) => `:${x}:`)
+      .map((x, i) => {
+        if ((i + 1) % width === 0) return x + "\n";
+        return x;
+      })
+      .join(""),
   });
 });
 
@@ -161,18 +343,6 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
   const title = message.text;
   if (!title) return;
 
-  const image = await Jimp.fromBuffer(
-    await (
-      await fetch(file.url_private!, {
-        method: "GET",
-        headers: {
-          // We aren't using `Jimp.read()` because we need to pass the Authorization header
-          Authorization: "Bearer " + process.env.SLACK_BOT_TOKEN,
-        },
-      })
-    ).arrayBuffer(),
-  );
-
   await client.chat.delete({
     channel: body.channel.id,
     ts: body.message.ts,
@@ -185,34 +355,13 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
     timestamp: message.ts!,
   });
 
-  let emojis: string[] = [];
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const buf = await image
-        .clone()
-        .crop({
-          x: Math.floor((image.width / width) * x),
-          y: Math.floor((image.height / height) * y),
-          w: Math.floor(image.width / width),
-          h: Math.floor(image.height / height),
-        })
-        .resize({
-          // Recommended slack emoji size is 128x128
-          h: 128,
-          w: 128,
-          mode: ResizeStrategy.BILINEAR,
-        })
-        .getBuffer("image/png");
-
-      const emojiName = `${title}-${x + 1}-${y + 1}-${randomChars()}`;
-      app.logger.info("trying to upload " + emojiName + " for " + body.user.id);
-      await uploadEmoji(emojiName, body.team!.domain, buf);
-      emojis.push(emojiName);
-    }
-  }
-
-  if (!body.team) throw new Error("no body.team !!");
+  const emojis = await createSticker(
+    file.url_private!,
+    body.team!.domain,
+    title,
+    width,
+    height,
+  );
 
   try {
     await client.reactions.remove({
