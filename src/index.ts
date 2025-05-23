@@ -160,8 +160,6 @@ app.action("custom", async ({ client, action, body, ack }) => {
     return;
   }
 
-  const file = message.files![0]!;
-
   const title = message.text;
   if (!title) return;
 
