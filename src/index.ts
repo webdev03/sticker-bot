@@ -11,6 +11,7 @@ const app = new App({
 });
 
 app.message(async ({ client, message }) => {
+  console.log(message);
   if (
     message.subtype !== "file_share" ||
     !ALLOWED_CHANNELS.includes(message.channel) ||
