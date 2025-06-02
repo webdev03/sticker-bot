@@ -1,0 +1,44 @@
+{
+  "display_information": {
+    "name": "StickerBot",
+    "description": "this is what happens when slack doesnt add stickers",
+    "background_color": "#577be6",
+    "long_description": "go to #sticker-bot now!! you can add an image and select your dimensions, i'll turn it into a grid of individual emojis that adds to a huge image! what are you waiting for? hmm???????????? also i'm open source!"
+  },
+  "features": {
+    "bot_user": {
+      "display_name": "StickerBot",
+      "always_online": true
+    }
+  },
+  "oauth_config": {
+    "scopes": {
+      "bot": [
+        "channels:read",
+        "chat:write",
+        "commands",
+        "emoji:read",
+        "im:history",
+        "im:read",
+        "im:write",
+        "reactions:write",
+        "users:write",
+        "files:read",
+        "files:write",
+        "channels:history",
+        "groups:history"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": ["message.channels", "message.groups", "message.im"]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false
+  }
+}
