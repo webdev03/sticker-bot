@@ -35,11 +35,16 @@ export async function uploadEmoji(
     },
   });
   if (!req.ok) console.error(req.status, req.statusText, await req.text());
+  if (req.status === 429) {
+    // ratelimit
+    await sleep(Number(req.headers.get("Retry-After") || "5") * 1000 + 350);
+    return await uploadEmoji(emojiName, teamDomain, image);
+  }
 
   // responsible sleeping
-  await sleep(250);
+  await sleep(350);
 
-  return req.ok;
+  return;
 }
 
 export async function createSticker(
