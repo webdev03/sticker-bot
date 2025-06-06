@@ -34,6 +34,7 @@ export async function uploadEmoji(
       Cookie: process.env.SLACK_COOKIE!,
     },
   });
+  if (!req.ok) console.error(req.status, req.statusText, await req.text());
 
   // responsible sleeping
   await sleep(250);
