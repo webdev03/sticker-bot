@@ -36,7 +36,7 @@ export async function uploadEmoji(
   });
 
   // responsible sleeping
-  await sleep(200);
+  await sleep(250);
 
   return req.ok;
 }
