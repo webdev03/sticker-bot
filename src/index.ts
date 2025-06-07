@@ -196,7 +196,7 @@ app.action("custom", async ({ client, action, body, ack }) => {
           element: {
             type: "number_input",
             action_id: "width",
-            min_value: "2",
+            min_value: "1",
             max_value: "12",
             is_decimal_allowed: false,
           },
@@ -211,7 +211,7 @@ app.action("custom", async ({ client, action, body, ack }) => {
           element: {
             type: "number_input",
             action_id: "height",
-            min_value: "2",
+            min_value: "1",
             max_value: "12",
             is_decimal_allowed: false,
           },
