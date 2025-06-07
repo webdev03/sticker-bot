@@ -1,14 +1,12 @@
 import { randomBytes } from "crypto";
-import { Jimp, ResizeStrategy } from "jimp";
+import sharp from "sharp";
 
 export function randomChars(len = 6): string {
   return randomBytes(len).toString("hex");
 }
 
 export function isImageFile(mimeType: string): boolean {
-  return ["image/gif", "image/jpeg", "image/png", "image/tiff"].includes(
-    mimeType,
-  );
+  return ["image/gif", "image/jpeg", "image/png"].includes(mimeType);
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -16,7 +14,8 @@ export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export async function uploadEmoji(
   emojiName: string,
   teamDomain: string,
-  image: Buffer, // must be png
+  image: Buffer, // must be png,
+  type: string,
 ) {
   // logic is based from github.com/taciturnaxolotl/emojibot
 
@@ -25,7 +24,7 @@ export async function uploadEmoji(
   form.append("token", process.env.SLACK_USER_XOXC!);
   form.append("mode", "data");
   form.append("name", emojiName);
-  form.append("image", new Blob([image]), "image.png");
+  form.append("image", new Blob([image]), "image." + type);
 
   const req = await fetch(`https://${teamDomain}.slack.com/api/emoji.add`, {
     method: "POST",
@@ -38,7 +37,7 @@ export async function uploadEmoji(
   if (req.status === 429) {
     // ratelimit
     await sleep(Number(req.headers.get("Retry-After") || "5") * 1000 + 350);
-    return await uploadEmoji(emojiName, teamDomain, image);
+    return await uploadEmoji(emojiName, teamDomain, image, type);
   }
 
   // responsible sleeping
@@ -54,7 +53,7 @@ export async function createSticker(
   width: number,
   height: number,
 ): Promise<string[]> {
-  const image = await Jimp.fromBuffer(
+  const image = sharp(
     await (
       await fetch(fileUrl, {
         method: "GET",
@@ -64,7 +63,13 @@ export async function createSticker(
         },
       })
     ).arrayBuffer(),
+    {
+      animated: true,
+    },
   );
+  const imgMetadata = await image.metadata();
+  const imgWidth = imgMetadata.width;
+  const imgHeight = imgMetadata.pageHeight || imgMetadata.height;
 
   let emojis: string[] = [];
 
@@ -72,23 +77,23 @@ export async function createSticker(
     for (let x = 0; x < width; x++) {
       const buf = await image
         .clone()
-        .crop({
-          x: Math.floor((image.width / width) * x),
-          y: Math.floor((image.height / height) * y),
-          w: Math.floor(image.width / width),
-          h: Math.floor(image.height / height),
+        .extract({
+          left: Math.floor((imgWidth / width) * x),
+          top: Math.floor((imgHeight / height) * y),
+          width: Math.floor(imgWidth / width),
+          height: Math.floor(imgHeight / height),
         })
         .resize({
           // Recommended slack emoji size is 128x128
-          h: 128,
-          w: 128,
-          mode: ResizeStrategy.BILINEAR,
+          width: 128,
+          height: 128,
+          fit: "fill",
         })
-        .getBuffer("image/png");
+        .toBuffer();
 
       const emojiName = `${title}-${x + 1}-${y + 1}-${randomChars()}`;
       console.log("trying to upload " + emojiName);
-      await uploadEmoji(emojiName, teamDomain, buf);
+      await uploadEmoji(emojiName, teamDomain, buf, imgMetadata.format);
       emojis.push(emojiName);
     }
   }

@@ -60,7 +60,7 @@ app.message(async ({ client, message }) => {
     await client.chat.postMessage({
       channel: message.channel,
       thread_ts: message.ts,
-      text: `your file must be a supported image type! (either png, jpeg, tiff, or gif) (your file was ${file.mimetype})`,
+      text: `your file must be a supported image type! (either png, jpeg, or gif) (your file was ${file.mimetype})`,
     });
     return;
   }
