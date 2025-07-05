@@ -8,7 +8,8 @@ A Slack bot that lets you make large emoji images! (I call them stickers, like s
 
 ## Setup
 
-**You can either use the `Dockerfile` with Docker to deploy this project, or you can follow the instructions below to manually run it:**
+**You can either use the `Dockerfile` with Docker to deploy this project, or you can follow the instructions below to
+manually run it:**
 
 You will need [Bun](https://bun.sh) to run this bot.
 

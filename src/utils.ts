@@ -1,7 +1,7 @@
 import { randomBytes } from "crypto";
 import sharp from "sharp";
 
-export function randomChars(len = 6): string {
+export function randomChars(len = 2): string {
   return randomBytes(len).toString("hex");
 }
 
@@ -11,12 +11,17 @@ export function isImageFile(mimeType: string): boolean {
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function uploadEmoji(
-  emojiName: string,
-  teamDomain: string,
-  image: Buffer, // must be png,
-  type: string,
-) {
+export async function uploadEmoji({
+  emojiName,
+  teamDomain,
+  image,
+  type,
+}: {
+  emojiName: string;
+  teamDomain: string;
+  image: Buffer;
+  type: string;
+}) {
   // logic is based from github.com/taciturnaxolotl/emojibot
 
   const form = new FormData();
@@ -37,7 +42,12 @@ export async function uploadEmoji(
   if (req.status === 429) {
     // ratelimit
     await sleep(Number(req.headers.get("Retry-After") || "5") * 1000 + 350);
-    return await uploadEmoji(emojiName, teamDomain, image, type);
+    return await uploadEmoji({
+      emojiName: emojiName,
+      teamDomain: teamDomain,
+      image: image,
+      type: type,
+    });
   }
 
   // responsible sleeping
@@ -46,13 +56,19 @@ export async function uploadEmoji(
   return;
 }
 
-export async function createSticker(
-  fileUrl: string,
-  teamDomain: string,
-  title: string,
-  width: number,
-  height: number,
-): Promise<string[]> {
+export async function createSticker({
+  fileUrl,
+  teamDomain,
+  title,
+  width,
+  height,
+}: {
+  fileUrl: string;
+  teamDomain: string;
+  title: string;
+  width: number;
+  height: number;
+}): Promise<string[]> {
   const image = sharp(
     await (
       await fetch(fileUrl, {
@@ -93,7 +109,12 @@ export async function createSticker(
 
       const emojiName = `${title}-${x + 1}-${y + 1}-${randomChars()}`;
       console.log("trying to upload " + emojiName);
-      await uploadEmoji(emojiName, teamDomain, buf, imgMetadata.format);
+      await uploadEmoji({
+        emojiName: emojiName,
+        teamDomain: teamDomain,
+        image: buf,
+        type: imgMetadata.format,
+      });
       emojis.push(emojiName);
     }
   }

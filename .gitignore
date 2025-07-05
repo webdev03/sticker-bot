@@ -29,6 +29,13 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # IntelliJ based IDEs
 .idea
+/shelf/
+/workspace.xml
+/httpRequests/
+/mavenHomeManager.xml
+/dataSources/
+/dataSources.local.xml
+*.iml
 
 # Finder (MacOS) folder config
 .DS_Store

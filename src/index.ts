@@ -269,13 +269,13 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
     timestamp: message.ts!,
   });
 
-  const emojis = await createSticker(
-    file.url_private!,
-    body.team!.domain,
-    title,
-    width,
-    height,
-  );
+  const emojis = await createSticker({
+    fileUrl: file.url_private!,
+    teamDomain: body.team!.domain,
+    title: title,
+    width: width,
+    height: height,
+  });
 
   try {
     await client.reactions.remove({
@@ -353,13 +353,13 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
     timestamp: message.ts!,
   });
 
-  const emojis = await createSticker(
-    file.url_private!,
-    body.team!.domain,
-    title,
-    width,
-    height,
-  );
+  const emojis = await createSticker({
+    fileUrl: file.url_private!,
+    teamDomain: body.team!.domain,
+    title: title,
+    width: width,
+    height: height,
+  });
 
   try {
     await client.reactions.remove({
