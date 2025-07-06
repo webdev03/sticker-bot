@@ -13,7 +13,7 @@ manually run it:**
 
 You will need [Bun](https://bun.sh) to run this bot.
 
-To setup the `.env` file:
+To set up the `.env` file:
 
 ```bash
 cp .env.example .env
