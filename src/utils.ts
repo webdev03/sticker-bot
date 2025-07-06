@@ -6,7 +6,9 @@ export function randomChars(len = 2): string {
 }
 
 export function isImageFile(mimeType: string): boolean {
-  return ["image/gif", "image/jpeg", "image/png"].includes(mimeType);
+  return ["image/gif", "image/jpeg", "image/png", "image/webp"].includes(
+    mimeType,
+  );
 }
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
