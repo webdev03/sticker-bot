@@ -1,6 +1,32 @@
 import { randomBytes } from "crypto";
 import sharp from "sharp";
 
+export function recommendedStickerDimensions(
+  width: number,
+  height: number,
+): number[] {
+  const aspectRatio = width / height;
+  let bestFit = [3, 3];
+  let bestDiff = Math.abs(3 / 3 - aspectRatio);
+  let bestArea = 3 * 3;
+
+  for (let rows = 1; rows <= 12; rows++) {
+    for (let cols = 1; cols <= 12; cols++) {
+      const ratio = cols / rows;
+      const diff = Math.abs(ratio - aspectRatio);
+      const area = rows * cols;
+
+      if (diff < bestDiff || (diff === bestDiff && area > bestArea)) {
+        bestDiff = diff;
+        bestFit = [cols, rows];
+        bestArea = area;
+      }
+    }
+  }
+
+  return bestFit;
+}
+
 export function randomChars(len = 2): string {
   return randomBytes(len).toString("hex");
 }

@@ -1,5 +1,10 @@
 import { App } from "@slack/bolt";
-import { createSticker, isImageFile } from "./utils";
+import {
+  recommendedStickerDimensions,
+  createSticker,
+  isImageFile,
+} from "./utils";
+import sharp from "sharp";
 
 const ALLOWED_CHANNELS = process.env["SLACK_CHANNELS"]!.split(",") // split comma-separated list
   .map((x) => x.trim()); // trim whitespace
@@ -65,6 +70,26 @@ app.message(async ({ client, message }) => {
     return;
   }
 
+  const imageMeta = await sharp(
+    await (
+      await fetch(file.url_private!, {
+        method: "GET",
+        headers: {
+          // We aren't using `Jimp.read()` because we need to pass the Authorization header
+          Authorization: "Bearer " + process.env.SLACK_BOT_TOKEN,
+        },
+      })
+    ).arrayBuffer(),
+    {
+      animated: true,
+    },
+  ).metadata();
+
+  const recommended = recommendedStickerDimensions(
+    imageMeta.width,
+    imageMeta.pageHeight || imageMeta.height,
+  );
+
   await client.chat.postMessage({
     channel: message.channel,
     thread_ts: message.ts,
@@ -85,6 +110,17 @@ app.message(async ({ client, message }) => {
             text: {
               type: "plain_text",
               emoji: true,
+              text: `Recommended (${recommended[0]}x${recommended[1]})`,
+            },
+            style: "primary",
+            value: `${recommended[0]}x${recommended[1]}`,
+            action_id: `${recommended[0]}x${recommended[1]}`,
+          },
+          {
+            type: "button",
+            text: {
+              type: "plain_text",
+              emoji: true,
               text: "2x2",
             },
             value: "2x2",
@@ -97,7 +133,6 @@ app.message(async ({ client, message }) => {
               emoji: true,
               text: "3x3",
             },
-            style: "primary",
             value: "3x3",
             action_id: "3x3",
           },
