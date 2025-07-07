@@ -114,12 +114,13 @@ export async function createSticker({
   const imgMetadata = await image.metadata();
   const imgWidth = imgMetadata.width;
   const imgHeight = imgMetadata.pageHeight || imgMetadata.height;
+  const isAnimated = Boolean(imgMetadata.pages && imgMetadata.pages > 1);
 
   let emojis: string[] = [];
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
-      const buf = await image
+      const newImg = image
         .clone()
         .extract({
           left: Math.floor((imgWidth / width) * x),
@@ -132,8 +133,31 @@ export async function createSticker({
           width: 128,
           height: 128,
           fit: "fill",
-        })
-        .toBuffer();
+        });
+
+      if (isAnimated && (await newImg.toBuffer()).byteLength / 1000 > 128) {
+        let quality = 60;
+        while (quality >= 10) {
+          const testingBuf = await newImg
+            .clone()
+            .webp({
+              effort: 4, // change this to 5 or 6 if you're self-hosting and are fine with lots of cpu usage
+              quality: quality,
+            })
+            .toBuffer();
+          // yeah, I know it's 1000 not 1024, it's for a safe buffer zone
+          if (testingBuf.byteLength / 1000 < 128) {
+            newImg.webp({
+              effort: 4, // same here
+              quality: quality,
+            });
+            break;
+          }
+          quality -= 10;
+        }
+      }
+
+      const buf = await newImg.toBuffer();
 
       const emojiName = `${title}-${x + 1}-${y + 1}-${randomChars()}`;
       console.log("trying to upload " + emojiName);
@@ -141,7 +165,7 @@ export async function createSticker({
         emojiName: emojiName,
         teamDomain: teamDomain,
         image: buf,
-        type: imgMetadata.format,
+        type: (await newImg.metadata()).format,
       });
       emojis.push(emojiName);
     }

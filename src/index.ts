@@ -85,6 +85,15 @@ app.message(async ({ client, message }) => {
     },
   ).metadata();
 
+  if (imageMeta.pages && imageMeta.pages > 50) {
+    await client.chat.postMessage({
+      channel: message.channel,
+      thread_ts: message.ts,
+      text: `your animated image can have a maximum of 50 frames! (currently it has ${imageMeta.pages} frames)`,
+    });
+    return;
+  }
+
   const recommended = recommendedStickerDimensions(
     imageMeta.width,
     imageMeta.pageHeight || imageMeta.height,
