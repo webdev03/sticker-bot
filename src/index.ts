@@ -345,6 +345,12 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
       })
       .join(""),
   });
+
+  await client.chat.postMessage({
+    channel: channelId,
+    thread_ts: message.ts,
+    text: `<@${message.user}> Done!`,
+  });
 });
 
 // Regex matches `{digit}x{digit}`
@@ -433,6 +439,12 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
         return x;
       })
       .join(""),
+  });
+
+  await client.chat.postMessage({
+    channel: body.channel.id,
+    thread_ts: message.ts,
+    text: `<@${message.user}> Done!`,
   });
 });
 
