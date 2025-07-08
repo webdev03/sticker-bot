@@ -9,7 +9,7 @@ import sharp from "sharp";
 const ALLOWED_CHANNELS = process.env["SLACK_CHANNELS"]!.split(",") // split comma-separated list
   .map((x) => x.trim()); // trim whitespace
 
-const app = new App({
+export const app = new App({
   socketMode: true,
   token: process.env.SLACK_BOT_TOKEN,
   appToken: process.env.SLACK_APP_TOKEN,
@@ -313,12 +313,17 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
     timestamp: message.ts!,
   });
 
+  console.log("creating sticker '", title, "' for", message.user);
+
   const emojis = await createSticker({
     fileUrl: file.url_private!,
     teamDomain: body.team!.domain,
     title: title,
     width: width,
     height: height,
+    channel: channelId,
+    timestamp: message.ts!,
+    app: app,
   });
 
   try {
@@ -397,12 +402,17 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
     timestamp: message.ts!,
   });
 
+  console.log("creating sticker '", title, "' for", message.user);
+
   const emojis = await createSticker({
     fileUrl: file.url_private!,
     teamDomain: body.team!.domain,
     title: title,
     width: width,
     height: height,
+    channel: body.channel.id,
+    timestamp: message.ts!,
+    app: app,
   });
 
   try {

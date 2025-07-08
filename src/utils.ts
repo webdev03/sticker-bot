@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import sharp from "sharp";
+import type { App, StringIndexed } from "@slack/bolt";
 
 export function recommendedStickerDimensions(
   width: number,
@@ -68,7 +69,7 @@ export async function uploadEmoji({
   });
   if (!req.ok) console.error(req.status, req.statusText, await req.text());
   if (req.status === 429) {
-    // ratelimit
+    // rate limit
     await sleep(Number(req.headers.get("Retry-After") || "5") * 1000 + 350);
     return await uploadEmoji({
       emojiName: emojiName,
@@ -90,13 +91,25 @@ export async function createSticker({
   title,
   width,
   height,
+  channel,
+  timestamp,
+  app,
 }: {
   fileUrl: string;
   teamDomain: string;
   title: string;
   width: number;
   height: number;
+  channel: string;
+  timestamp: string;
+  app: App<StringIndexed>;
 }): Promise<string[]> {
+  await app.client.chat.postMessage({
+    channel: channel,
+    thread_ts: timestamp,
+    text: `Creating new ${width}x${height} sticker: "${title}"`,
+  });
+
   const image = sharp(
     await (
       await fetch(fileUrl, {
@@ -168,6 +181,14 @@ export async function createSticker({
         type: (await newImg.metadata()).format,
       });
       emojis.push(emojiName);
+    }
+
+    if (y !== height - 1) {
+      await app.client.chat.postMessage({
+        channel: channel,
+        thread_ts: timestamp,
+        text: `Finished row ${y + 1}! ${(y + 1) * height}/${width * height} done so far`,
+      });
     }
   }
 
