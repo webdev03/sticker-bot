@@ -2,6 +2,14 @@ import { randomBytes } from "crypto";
 import sharp from "sharp";
 import type { App, StringIndexed } from "@slack/bolt";
 
+function secondsToNice(seconds: number) {
+  if (seconds >= 60) {
+    return `${Math.floor(seconds / 60)}min ${seconds % 60}s`;
+  } else {
+    return `${seconds}s`;
+  }
+}
+
 export function recommendedStickerDimensions(
   width: number,
   height: number,
@@ -131,6 +139,8 @@ export async function createSticker({
 
   let emojis: string[] = [];
 
+  const startTime = Date.now();
+
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const newImg = image
@@ -184,10 +194,17 @@ export async function createSticker({
     }
 
     if (y !== height - 1) {
+      const completedSoFar = (y + 1) * height;
       await app.client.chat.postMessage({
         channel: channel,
         thread_ts: timestamp,
-        text: `Finished row ${y + 1}! ${(y + 1) * height}/${width * height} done so far`,
+        text: `Finished row ${y + 1}! ${completedSoFar}/${width * height} done so far. ETA: ${secondsToNice(
+          Math.ceil(
+            (((Date.now() - startTime) / completedSoFar) *
+              (width * height - completedSoFar)) /
+              1000,
+          ),
+        )}`,
       });
     }
   }
