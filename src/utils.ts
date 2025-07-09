@@ -153,8 +153,14 @@ export async function createSticker({
         })
         .resize({
           // Recommended slack emoji size is 128x128
-          width: 128,
-          height: 128,
+          width: Math.min(
+            128,
+            Math.floor(Math.max(imgWidth / width, imgHeight / height)),
+          ),
+          height: Math.min(
+            128,
+            Math.floor(Math.max(imgWidth / width, imgHeight / height)),
+          ),
           fit: "fill",
         });
 
@@ -183,7 +189,11 @@ export async function createSticker({
       const buf = await newImg.toBuffer();
 
       const emojiName = `${title}-${x + 1}-${y + 1}-${randomChars()}`;
-      console.log("trying to upload " + emojiName);
+      console.log(
+        "trying to upload " + emojiName,
+        "size:",
+        (buf.byteLength / 1024).toFixed(3) + "kb",
+      );
       await uploadEmoji({
         emojiName: emojiName,
         teamDomain: teamDomain,
