@@ -19,8 +19,8 @@ export function recommendedStickerDimensions(
   let bestDiff = Math.abs(3 / 3 - aspectRatio);
   let bestArea = 3 * 3;
 
-  for (let rows = 1; rows <= 12; rows++) {
-    for (let cols = 1; cols <= 12; cols++) {
+  for (let rows = 1; rows <= 16; rows++) {
+    for (let cols = 1; cols <= 16; cols++) {
       const ratio = cols / rows;
       const diff = Math.abs(ratio - aspectRatio);
       const area = rows * cols;
