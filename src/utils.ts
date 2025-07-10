@@ -204,7 +204,7 @@ export async function createSticker({
     }
 
     if (y !== height - 1) {
-      const completedSoFar = (y + 1) * height;
+      const completedSoFar = (y + 1) * width;
       await app.client.chat.postMessage({
         channel: channel,
         thread_ts: timestamp,
