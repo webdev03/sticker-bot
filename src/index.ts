@@ -387,6 +387,8 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
       title: title,
       creator: message.user,
       emojis: emojis,
+      width: width,
+      height: height,
     });
   } catch (error) {
     console.error("error saving sticker:", error);
@@ -514,6 +516,8 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
       title: title,
       creator: message.user,
       emojis: emojis,
+      width: width,
+      height: height,
     });
   } catch (error) {
     console.error("error saving sticker:", error);
