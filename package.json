@@ -5,17 +5,24 @@
   "private": true,
   "scripts": {
     "start": "bun run src/index.ts",
-    "format": "prettier . --write"
+    "format": "prettier . --write",
+    "db:push": "drizzle-kit push",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "prettier": "3.6.2"
+    "drizzle-kit": "^0.31.4",
+    "prettier": "3.6.2",
+    "tsx": "^4.20.3"
   },
   "peerDependencies": {
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.1",
     "@slack/bolt": "^4.4.0",
+    "drizzle-orm": "^0.44.2",
     "sharp": "^0.34.2"
   }
 }

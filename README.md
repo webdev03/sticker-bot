@@ -11,7 +11,7 @@ A Slack bot that lets you make large emoji images! (I call them stickers, like s
 **You can either use the `Dockerfile` with Docker to deploy this project, or you can follow the instructions below to
 manually run it:**
 
-You will need [Bun](https://bun.sh) to run this bot.
+You will need [Bun](https://bun.sh) to run this bot. Also, for data storage, you will need a [Neon](https://neon.tech) database.
 
 To set up the `.env` file:
 
@@ -23,7 +23,7 @@ $EDITOR .env # add the requested environment variables! you can use the slack-ma
 To install dependencies:
 
 ```bash
-bun install
+bun install --frozen-lockfile
 ```
 
 To start:

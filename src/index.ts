@@ -6,8 +6,14 @@ import {
 } from "./utils";
 import sharp from "sharp";
 
+import { eq } from "drizzle-orm";
+import { db } from "./db";
+import { stickers } from "./db/schema";
+
 const ALLOWED_CHANNELS = process.env["SLACK_CHANNELS"]!.split(",") // split comma-separated list
   .map((x) => x.trim()); // trim whitespace
+
+const reservedTitles = new Set(); // when the button is clicked to start creating a sticker, it is added here, to prevent duplication
 
 export const app = new App({
   socketMode: true,
@@ -207,6 +213,21 @@ app.action("custom", async ({ client, action, body, ack }) => {
   const title = message.text;
   if (!title) return;
 
+  if (
+    reservedTitles.has(title) ||
+    (await db.select().from(stickers).where(eq(stickers.title, title)))
+      .length !== 0
+  ) {
+    await client.chat.postMessage({
+      channel: body.channel.id,
+      thread_ts: message.ts,
+      text: "a sticker with the same name already exists!",
+    });
+    return;
+  }
+
+  reservedTitles.add(title);
+
   await client.chat.delete({
     channel: body.channel.id,
     ts: body.message.ts,
@@ -289,7 +310,7 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
     })
   )?.messages?.[0];
 
-  if (!message) throw new Error("message not found!");
+  if (!message || !message.user) throw new Error("message not found!");
 
   if (message.user !== body.user.id) {
     await client.chat.postEphemeral({
@@ -305,6 +326,21 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
 
   const title = message.text;
   if (!title) return;
+
+  if (
+    reservedTitles.has(title) ||
+    (await db.select().from(stickers).where(eq(stickers.title, title)))
+      .length !== 0
+  ) {
+    await client.chat.postMessage({
+      channel: channelId,
+      thread_ts: message.ts,
+      text: "a sticker with the same name already exists!",
+    });
+    return;
+  }
+
+  reservedTitles.add(title);
 
   // This reaction is supposed to show that the sticker is being processed
   await client.reactions.add({
@@ -346,11 +382,28 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
       .join(""),
   });
 
+  try {
+    await db.insert(stickers).values({
+      title: title,
+      creator: message.user,
+      emojis: emojis,
+    });
+  } catch (error) {
+    console.error("error saving sticker:", error);
+    await client.chat.postMessage({
+      channel: channelId,
+      thread_ts: message.ts,
+      text: "oops! there was an error saving your sticker to the database! please try again if you need it to be saved!",
+    });
+  }
+
   await client.chat.postMessage({
     channel: channelId,
     thread_ts: message.ts,
     text: `<@${message.user}> Done!`,
   });
+
+  reservedTitles.delete(title);
 });
 
 // Regex matches `{digit}x{digit}`
@@ -379,7 +432,7 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
     })
   )?.messages?.[0];
 
-  if (!message) throw new Error("message not found!");
+  if (!message || !message.user) throw new Error("message not found!");
 
   if (message.user !== body.user.id) {
     await client.chat.postEphemeral({
@@ -395,6 +448,21 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
 
   const title = message.text;
   if (!title) return;
+
+  if (
+    reservedTitles.has(title) ||
+    (await db.select().from(stickers).where(eq(stickers.title, title)))
+      .length !== 0
+  ) {
+    await client.chat.postMessage({
+      channel: body.channel.id,
+      thread_ts: message.ts,
+      text: "a sticker with the same name already exists!",
+    });
+    return;
+  }
+
+  reservedTitles.add(title);
 
   await client.chat.delete({
     channel: body.channel.id,
@@ -441,11 +509,28 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
       .join(""),
   });
 
+  try {
+    await db.insert(stickers).values({
+      title: title,
+      creator: message.user,
+      emojis: emojis,
+    });
+  } catch (error) {
+    console.error("error saving sticker:", error);
+    await client.chat.postMessage({
+      channel: body.channel.id,
+      thread_ts: message.ts,
+      text: "oops! there was an error saving your sticker to the database! please try again if you need it to be saved!",
+    });
+  }
+
   await client.chat.postMessage({
     channel: body.channel.id,
     thread_ts: message.ts,
     text: `<@${message.user}> Done!`,
   });
+
+  reservedTitles.delete(title);
 });
 
 await app.start();
