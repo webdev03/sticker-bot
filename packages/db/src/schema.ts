@@ -1,8 +1,8 @@
 import {
-  timestamp,
   integer,
   jsonb,
   pgTable,
+  timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
 

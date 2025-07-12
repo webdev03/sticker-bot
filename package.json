@@ -1,28 +1,25 @@
 {
   "name": "sticker-bot",
-  "module": "src/index.ts",
-  "type": "module",
-  "private": true,
+  "packageManager": "bun@1.2.8",
   "scripts": {
-    "start": "bun run src/index.ts",
-    "format": "prettier . --write",
-    "db:push": "drizzle-kit push",
-    "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "turbo": "turbo",
+    "format": "turbo run format --continue -- --cache --cache-location .cache/.prettiercache",
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "typecheck": "turbo typecheck"
   },
-  "devDependencies": {
-    "@types/bun": "latest",
-    "drizzle-kit": "^0.31.4",
-    "prettier": "3.6.2",
-    "tsx": "^4.20.3"
-  },
-  "peerDependencies": {
-    "typescript": "^5.8.3"
-  },
-  "dependencies": {
-    "@neondatabase/serverless": "^1.0.1",
-    "@slack/bolt": "^4.4.0",
-    "drizzle-orm": "^0.44.2",
-    "sharp": "^0.34.2"
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*",
+      "tooling/*"
+    ],
+    "catalog": {
+      "typescript": "^5.8.3",
+      "@t3-oss/env-core": "^0.13.8",
+      "zod": "^4.0.5",
+      "dotenv-cli": "^8.0.0",
+      "prettier": "3.6.2"
+    }
   }
 }

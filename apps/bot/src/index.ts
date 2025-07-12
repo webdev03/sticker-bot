@@ -1,24 +1,26 @@
 import { App } from "@slack/bolt";
-import {
-  recommendedStickerDimensions,
-  createSticker,
-  isImageFile,
-} from "./utils";
 import sharp from "sharp";
 
-import { eq } from "drizzle-orm";
-import { db } from "./db";
-import { stickers } from "./db/schema";
+import { eq } from "@repo/db";
+import { db } from "@repo/db/client";
+import { stickers } from "@repo/db/schema";
 
-const ALLOWED_CHANNELS = process.env["SLACK_CHANNELS"]!.split(",") // split comma-separated list
+import { env } from "./env";
+import {
+  createSticker,
+  isImageFile,
+  recommendedStickerDimensions,
+} from "./utils";
+
+const ALLOWED_CHANNELS = env["SLACK_CHANNELS"]!.split(",") // split comma-separated list
   .map((x) => x.trim()); // trim whitespace
 
 const reservedTitles = new Set(); // when the button is clicked to start creating a sticker, it is added here, to prevent duplication
 
 export const app = new App({
   socketMode: true,
-  token: process.env.SLACK_BOT_TOKEN,
-  appToken: process.env.SLACK_APP_TOKEN,
+  token: env.SLACK_BOT_TOKEN,
+  appToken: env.SLACK_APP_TOKEN,
 });
 
 app.message(async ({ client, message }) => {
@@ -82,7 +84,7 @@ app.message(async ({ client, message }) => {
         method: "GET",
         headers: {
           // We aren't using `Jimp.read()` because we need to pass the Authorization header
-          Authorization: "Bearer " + process.env.SLACK_BOT_TOKEN,
+          Authorization: "Bearer " + env.SLACK_BOT_TOKEN,
         },
       })
     ).arrayBuffer(),

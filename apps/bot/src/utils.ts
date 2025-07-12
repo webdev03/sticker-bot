@@ -1,6 +1,8 @@
 import { randomBytes } from "crypto";
-import sharp from "sharp";
 import type { App, StringIndexed } from "@slack/bolt";
+import sharp from "sharp";
+
+import { env } from "./env";
 
 function secondsToNice(seconds: number) {
   if (seconds >= 60) {
@@ -63,7 +65,7 @@ export async function uploadEmoji({
 
   const form = new FormData();
 
-  form.append("token", process.env.SLACK_USER_XOXC!);
+  form.append("token", env.SLACK_USER_XOXC);
   form.append("mode", "data");
   form.append("name", emojiName);
   form.append("image", new Blob([image]), "image." + type);
@@ -72,7 +74,7 @@ export async function uploadEmoji({
     method: "POST",
     body: form,
     headers: {
-      Cookie: process.env.SLACK_COOKIE!,
+      Cookie: env.SLACK_COOKIE,
     },
   });
   if (!req.ok) console.error(req.status, req.statusText, await req.text());
@@ -124,7 +126,7 @@ export async function createSticker({
         method: "GET",
         headers: {
           // We aren't using `Jimp.read()` because we need to pass the Authorization header
-          Authorization: "Bearer " + process.env.SLACK_BOT_TOKEN,
+          Authorization: "Bearer " + env.SLACK_BOT_TOKEN,
         },
       })
     ).arrayBuffer(),

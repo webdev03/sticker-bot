@@ -39,3 +39,20 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # Finder (MacOS) folder config
 .DS_Store
+Thumbs.db
+
+# Turborepo
+.turbo
+
+# Output for SvelteKit
+.output
+.vercel
+.netlify
+.wrangler
+.svelte-kit
+build
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
