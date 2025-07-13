@@ -26,8 +26,10 @@ To install dependencies:
 bun install --frozen-lockfile
 ```
 
-To start:
+To develop:
 
 ```bash
-bun start
+bun dev
 ```
+
+The deployment guide should be added soon! Essentially, you will need to deploy both `apps/bot` and `apps/web`.
