@@ -2,7 +2,10 @@ import {
   integer,
   jsonb,
   pgTable,
+  serial,
+  text,
   timestamp,
+  uuid,
   varchar,
 } from "drizzle-orm/pg-core";
 
@@ -14,4 +17,10 @@ export const stickers = pgTable("stickers", {
   width: integer().notNull(),
   height: integer().notNull(),
   emojis: jsonb().$type<string[]>().notNull(),
+});
+
+export const authAttempt = pgTable("auth_attempt", {
+  state: serial("id").primaryKey(),
+  nonce: uuid("nonce").defaultRandom().notNull(),
+  redirectUri: text("redirect_uri").notNull(),
 });

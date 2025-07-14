@@ -1,8 +1,13 @@
-import type { PluginConfig as SortImportsConfig } from "@ianvs/prettier-plugin-sort-imports";
-import type { Config as PrettierConfig } from "prettier";
-import type { PluginConfig as SvelteConfig } from "prettier-plugin-svelte";
+/**
+ * @typedef {import("@ianvs/prettier-plugin-sort-imports").PluginConfig} SortImportsConfig
+ * @typedef {import("prettier").Config} PrettierConfig
+ * @typedef {import("prettier-plugin-svelte").PluginConfig} SvelteConfig
+ */
 
-const config: PrettierConfig | SortImportsConfig | SvelteConfig = {
+/**
+ * @type {PrettierConfig & SortImportsConfig & SvelteConfig}
+ */
+const config = {
   plugins: ["@ianvs/prettier-plugin-sort-imports", "prettier-plugin-svelte"],
   importOrder: [
     "<TYPES>",

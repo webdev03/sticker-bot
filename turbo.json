@@ -8,7 +8,7 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["build/**"],
-      "env": ["DATABASE_URL"]
+      "env": ["DATABASE_URL", "BETTER_AUTH_SECRET", "BASE_URL"]
     },
     "dev": {
       "persistent": true,
