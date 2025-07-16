@@ -17,6 +17,7 @@ export const stickers = pgTable("stickers", {
   width: integer().notNull(),
   height: integer().notNull(),
   emojis: jsonb().$type<string[]>().notNull(),
+  slackPermalink: text().notNull(),
 });
 
 export const authAttempt = pgTable("auth_attempt", {

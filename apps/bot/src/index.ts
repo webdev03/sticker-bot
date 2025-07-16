@@ -215,21 +215,6 @@ app.action("custom", async ({ client, action, body, ack }) => {
   const title = message.text;
   if (!title) return;
 
-  if (
-    reservedTitles.has(title) ||
-    (await db.select().from(stickers).where(eq(stickers.title, title)))
-      .length !== 0
-  ) {
-    await client.chat.postMessage({
-      channel: body.channel.id,
-      thread_ts: message.ts,
-      text: "a sticker with the same name already exists!",
-    });
-    return;
-  }
-
-  reservedTitles.add(title);
-
   await client.chat.delete({
     channel: body.channel.id,
     ts: body.message.ts,
@@ -329,6 +314,8 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
   const title = message.text;
   if (!title) return;
 
+  console.log(reservedTitles);
+
   if (
     reservedTitles.has(title) ||
     (await db.select().from(stickers).where(eq(stickers.title, title)))
@@ -372,7 +359,7 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
     });
   } catch {}
 
-  await client.chat.postMessage({
+  const stickerMessage = await client.chat.postMessage({
     channel: channelId,
     thread_ts: message.ts,
     text: emojis
@@ -384,6 +371,18 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
       .join(""),
   });
 
+  if (!stickerMessage.ok) throw Error("Couldn't send sticker message");
+  if (!stickerMessage.ts)
+    throw Error("Couldn't get timestamp of sticker message");
+
+  const permalink = (
+    await client.chat.getPermalink({
+      channel: channelId,
+      message_ts: stickerMessage.ts,
+    })
+  ).permalink;
+  if (!permalink) throw Error("Couldn't get permalink");
+
   try {
     await db.insert(stickers).values({
       title: title,
@@ -391,6 +390,7 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
       emojis: emojis,
       width: width,
       height: height,
+      slackPermalink: permalink,
     });
   } catch (error) {
     console.error("error saving sticker:", error);
@@ -501,7 +501,7 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
     });
   } catch {}
 
-  await client.chat.postMessage({
+  const stickerMessage = await client.chat.postMessage({
     channel: body.channel.id,
     thread_ts: message.ts,
     text: emojis
@@ -513,6 +513,18 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
       .join(""),
   });
 
+  if (!stickerMessage.ok) throw Error("Couldn't send sticker message");
+  if (!stickerMessage.ts)
+    throw Error("Couldn't get timestamp of sticker message");
+
+  const permalink = (
+    await client.chat.getPermalink({
+      channel: body.channel.id,
+      message_ts: stickerMessage.ts,
+    })
+  ).permalink;
+  if (!permalink) throw Error("Couldn't get permalink");
+
   try {
     await db.insert(stickers).values({
       title: title,
@@ -520,6 +532,7 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
       emojis: emojis,
       width: width,
       height: height,
+      slackPermalink: permalink,
     });
   } catch (error) {
     console.error("error saving sticker:", error);

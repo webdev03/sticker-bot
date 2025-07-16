@@ -6,7 +6,9 @@
     "format": "turbo run format --continue -- --cache --cache-location .cache/.prettiercache",
     "dev": "turbo dev",
     "build": "turbo build",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "db:push": "cd packages/db && bun db:push",
+    "db:studio": "cd packages/db && bun db:studio"
   },
   "workspaces": {
     "packages": [

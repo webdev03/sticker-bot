@@ -80,7 +80,7 @@ export async function uploadEmoji({
   if (!req.ok) console.error(req.status, req.statusText, await req.text());
   if (req.status === 429) {
     // rate limit
-    await sleep(Number(req.headers.get("Retry-After") || "5") * 1000 + 350);
+    await sleep(Number(req.headers.get("Retry-After") || "5") * 1000 + 250);
     return await uploadEmoji({
       emojiName: emojiName,
       teamDomain: teamDomain,
@@ -90,7 +90,7 @@ export async function uploadEmoji({
   }
 
   // responsible sleeping
-  await sleep(350);
+  await sleep(250);
 
   return;
 }
