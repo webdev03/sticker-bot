@@ -2,6 +2,9 @@ import { randomBytes } from "crypto";
 import type { App, StringIndexed } from "@slack/bolt";
 import sharp from "sharp";
 
+import { sql } from "@repo/db";
+import { db } from "@repo/db/client";
+
 import { env } from "./env";
 
 function secondsToNice(seconds: number) {
@@ -223,3 +226,6 @@ export async function createSticker({
 
   return emojis;
 }
+
+// On startup, try to add the extension for Levenshtein distance
+await db.execute(sql`CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;`);

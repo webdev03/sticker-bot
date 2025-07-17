@@ -1,7 +1,7 @@
 import { App } from "@slack/bolt";
 import sharp from "sharp";
 
-import { eq } from "@repo/db";
+import { asc, eq, sql } from "@repo/db";
 import { db } from "@repo/db/client";
 import { stickers } from "@repo/db/schema";
 
@@ -550,6 +550,43 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
   });
 
   reservedTitles.delete(title);
+});
+
+// it's a regex to allow for other names like `sticker-dev` to work
+// because slack only allows one app to use a sticker name but you may need to have a separate development app
+app.command(/sticker.*/, async ({ command, ack, respond }) => {
+  await ack();
+
+  const stickerQuery = command.text.trim().toLowerCase();
+
+  // Levenshtein algorithm is used here for basic typo correction
+  const sticker = (
+    await db
+      .select()
+      .from(stickers)
+      .orderBy(asc(sql`levenshtein(${stickers.title}, ${stickerQuery})`))
+      .where(
+        sql`levenshtein_less_equal(${stickers.title}, ${stickerQuery}, 5) <= 5`, // levenshtein_less_equal is more efficient
+      )
+      .limit(1)
+  )[0];
+
+  if (!sticker) {
+    await respond(
+      `Unfortunately, I couldn't find a sticker named "${stickerQuery}" - maybe create it?`,
+    );
+    return;
+  }
+
+  await respond(
+    `I found a sticker called "${sticker.title}"!\n\n${sticker.emojis
+      .map((x) => `:${x}:`)
+      .map((x, i) => {
+        if ((i + 1) % sticker.width === 0) return x + "\n";
+        return x;
+      })
+      .join("")}`,
+  );
 });
 
 await app.start();

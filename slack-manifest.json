@@ -9,9 +9,18 @@
     "bot_user": {
       "display_name": "StickerBot",
       "always_online": true
-    }
+    },
+    "slash_commands": [
+      {
+        "command": "/sticker",
+        "description": "Get a specific sticker!",
+        "usage_hint": "[name]",
+        "should_escape": false
+      }
+    ]
   },
   "oauth_config": {
+    "redirect_urls": ["!!!!!!!!!!!!!!   PLEASE CHANGE ME   !!!!!!!!!!!!!!"],
     "scopes": {
       "bot": [
         "channels:read",
