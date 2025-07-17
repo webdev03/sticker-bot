@@ -23,5 +23,8 @@
       "dotenv-cli": "^8.0.0",
       "prettier": "3.6.2"
     }
+  },
+  "devDependencies": {
+    "turbo": "^2.5.5"
   }
 }
