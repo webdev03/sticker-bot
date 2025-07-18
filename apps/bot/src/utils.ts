@@ -227,5 +227,16 @@ export async function createSticker({
   return emojis;
 }
 
+export function formatSticker(emojis: string[], width: number): string {
+  return emojis
+    .map((x) => `:${x}:`)
+    .map((x, i) => {
+      if ((i + 1) % width === 0) return x + "\n";
+      return x;
+    })
+    .join("");
+}
+
+
 // On startup, try to add the extension for Levenshtein distance
 await db.execute(sql`CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;`);

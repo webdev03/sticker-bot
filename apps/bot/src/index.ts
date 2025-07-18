@@ -8,6 +8,7 @@ import { stickers } from "@repo/db/schema";
 import { env } from "./env";
 import {
   createSticker,
+  formatSticker,
   isImageFile,
   recommendedStickerDimensions,
 } from "./utils";
@@ -362,13 +363,7 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
   const stickerMessage = await client.chat.postMessage({
     channel: channelId,
     thread_ts: message.ts,
-    text: emojis
-      .map((x) => `:${x}:`)
-      .map((x, i) => {
-        if ((i + 1) % width === 0) return x + "\n";
-        return x;
-      })
-      .join(""),
+    text: formatSticker(emojis, width),
   });
 
   if (!stickerMessage.ok) throw Error("Couldn't send sticker message");
@@ -504,13 +499,7 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
   const stickerMessage = await client.chat.postMessage({
     channel: body.channel.id,
     thread_ts: message.ts,
-    text: emojis
-      .map((x) => `:${x}:`)
-      .map((x, i) => {
-        if ((i + 1) % width === 0) return x + "\n";
-        return x;
-      })
-      .join(""),
+    text: formatSticker(emojis, width),
   });
 
   if (!stickerMessage.ok) throw Error("Couldn't send sticker message");
@@ -579,13 +568,7 @@ app.command(/sticker.*/, async ({ command, ack, respond }) => {
   }
 
   await respond(
-    `I found a sticker called "${sticker.title}"!\n\n${sticker.emojis
-      .map((x) => `:${x}:`)
-      .map((x, i) => {
-        if ((i + 1) % sticker.width === 0) return x + "\n";
-        return x;
-      })
-      .join("")}`,
+    `I found a sticker called "${sticker.title}"!\n\n${formatSticker(sticker.emojis, sticker.width)}`,
   );
 });
 
