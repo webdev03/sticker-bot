@@ -8,7 +8,14 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["build/**"],
-      "env": ["DATABASE_URL", "BETTER_AUTH_SECRET", "BASE_URL"]
+      "env": [
+        "DATABASE_URL",
+        "BASE_URL",
+        "JWT_SIGNING_SECRET",
+        "SLACK_CLIENT_ID",
+        "SLACK_CLIENT_SECRET",
+        "SLACK_TEAM"
+      ]
     },
     "dev": {
       "persistent": true,
