@@ -7,7 +7,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["build/**"],
+      "outputs": [".vercel/output/**"],
       "env": [
         "DATABASE_URL",
         "BASE_URL",
