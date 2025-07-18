@@ -3,9 +3,6 @@
   import { Loader } from "@lucide/svelte";
 
   import type { Sticker } from "../api/stickers/+server";
-  import type { PageData } from "./$types";
-
-  let { data }: { data: PageData } = $props();
 
   let stickers: Sticker[] = $state([]);
   let loading = $state(true);
@@ -37,7 +34,7 @@
   });
 </script>
 
-<h1 class="text-3xl font-semibold">Stickers</h1>
+<h1 class="text-3xl font-semibold">Sticker Gallery</h1>
 <p>List of stickers (newest first)</p>
 
 <div class="columns-1 sm:columns-2 lg:columns-3 gap-3 p-4 py-6">
