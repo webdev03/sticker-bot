@@ -21,6 +21,10 @@
       "persistent": true,
       "cache": false
     },
+    "start": {
+      "persistent": true,
+      "cache": false
+    },
     "typecheck": {
       "dependsOn": ["^build"],
       "outputs": [".cache/tsbuildinfo.json"]
