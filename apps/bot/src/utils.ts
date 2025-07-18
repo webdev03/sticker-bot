@@ -237,6 +237,5 @@ export function formatSticker(emojis: string[], width: number): string {
     .join("");
 }
 
-
 // On startup, try to add the extension for Levenshtein distance
 await db.execute(sql`CREATE EXTENSION IF NOT EXISTS fuzzystrmatch;`);
