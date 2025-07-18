@@ -5,4 +5,4 @@ COPY . .
 RUN bun install --frozen-lockfile
 
 USER bun
-ENTRYPOINT [ "bun", "run", "./src/index.ts" ]
+ENTRYPOINT [ "bun", "run", "start:bot" ]
