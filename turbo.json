@@ -7,7 +7,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".vercel/output/**"],
+      "outputs": [".vercel/output/**", ".svelte-kit/output/**"],
       "env": [
         "DATABASE_URL",
         "BASE_URL",
