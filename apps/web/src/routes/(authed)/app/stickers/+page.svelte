@@ -26,15 +26,15 @@
 
           await tick(); // wait for emojis to be added to DOM
 
-          // synchronise all the GIFs once they have loaded
+          // synchronise all the animations once they have loaded
           // this also runs for non-animated images but its fine
 
-          const gifs = [
-            ...document.querySelectorAll(".gif-sync"),
+          const animations = [
+            ...document.querySelectorAll(".emoji-sync"),
           ] as HTMLImageElement[];
 
           await Promise.all(
-            gifs.map(
+            animations.map(
               (img) =>
                 new Promise<void>((resolve) => {
                   if (img.complete) resolve();
@@ -43,7 +43,7 @@
             ),
           );
 
-          gifs.forEach((img) => {
+          animations.forEach((img) => {
             const src = img.src;
             img.src = "";
             img.src = src;
@@ -80,7 +80,7 @@
       >
         {#each sticker.emojis as emoji, i}
           <img
-            class="gif-sync inline p-0 m-0 h-8 w-8"
+            class="emoji-sync inline p-0 m-0 h-8 w-8"
             src={`https://cachet.dunkirk.sh/emojis/${emoji}/r`}
             alt={`Emoji ${i + 1}`}
           />
