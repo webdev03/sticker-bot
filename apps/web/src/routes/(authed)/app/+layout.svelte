@@ -4,6 +4,7 @@
   import type { Snippet } from "svelte";
   import * as NavigationMenu from "$lib/components/ui/navigation-menu";
   import { navigationMenuTriggerStyle } from "$lib/components/ui/navigation-menu/navigation-menu-trigger.svelte";
+  import { Toaster } from "$lib/components/ui/sonner";
 
   import type { LayoutData } from "./$types";
 
@@ -13,6 +14,9 @@
 <svelte:head>
   <title>Sticker Bot</title>
 </svelte:head>
+
+<Toaster />
+
 <div
   class="px-6 py-3 rounded-full border border-sky-300 flex items-center w-full"
 >
