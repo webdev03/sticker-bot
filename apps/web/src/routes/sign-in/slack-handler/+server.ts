@@ -50,12 +50,13 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
       JWT_SIGNING_SECRET,
       {
         // 1 year if in the development server
-        expiresIn: dev ? "1 year" : "24 hours",
+        expiresIn: dev ? "1 year" : "2 days",
       },
     ),
     {
       path: "/",
       httpOnly: true,
+      maxAge: 7 * 24 * 60 * 60, // 7 days
     },
   );
 
