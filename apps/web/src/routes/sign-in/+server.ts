@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ url }) => {
       })
       .returning()
   )[0];
-  
+
   redirect(
     307,
     `https://slack.com/openid/connect/authorize?response_type=code&scope=openid%20profile&client_id=${encodeURIComponent(SLACK_CLIENT_ID)}&state=${encodeURIComponent(state)}&team=${encodeURIComponent(SLACK_TEAM)}&nonce=${encodeURIComponent(nonce)}&redirect_uri=${encodeURIComponent(redirectUri)}`,

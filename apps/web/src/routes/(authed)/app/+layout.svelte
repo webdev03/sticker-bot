@@ -5,6 +5,7 @@
   import * as NavigationMenu from "$lib/components/ui/navigation-menu";
   import { navigationMenuTriggerStyle } from "$lib/components/ui/navigation-menu/navigation-menu-trigger.svelte";
   import { Toaster } from "$lib/components/ui/sonner";
+  import { Provider } from "$lib/components/ui/tooltip";
 
   import type { LayoutData } from "./$types";
 
@@ -54,5 +55,7 @@
 </div>
 
 <div class="mx-3 my-5">
-  {@render children()}
+  <Provider>
+    {@render children()}
+  </Provider>
 </div>

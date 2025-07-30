@@ -63,7 +63,7 @@
 <h1 class="text-3xl font-semibold">Sticker Gallery</h1>
 <p>List of stickers (newest first)</p>
 
-<div class="columns-1 md:columns-2 xl:columns-3 gap-3 p-4 py-6">
+<div class="columns-1 md:columns-2 xl:columns-3 gap-3 p-4 py-6 *:mb-3">
   {#each stickers as sticker}
     <StickerCard {sticker} />
   {:else}

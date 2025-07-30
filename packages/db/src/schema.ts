@@ -1,3 +1,4 @@
+import { relations } from "drizzle-orm";
 import {
   integer,
   jsonb,
@@ -18,6 +19,7 @@ export const stickers = pgTable("stickers", {
   height: integer().notNull(),
   emojis: jsonb().$type<string[]>().notNull(),
   slackPermalink: text().notNull(),
+  likes: jsonb().$type<string[]>().notNull().default([]), // array of Slack IDs of users who liked the sticker
 });
 
 export const authAttempt = pgTable("auth_attempt", {

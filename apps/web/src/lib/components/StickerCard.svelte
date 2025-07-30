@@ -1,6 +1,6 @@
 <script lang="ts">
   import { ClipboardCopy } from "@lucide/svelte";
-  import { Button, buttonVariants } from "$lib/components/ui/button";
+  import { buttonVariants } from "$lib/components/ui/button";
   import * as Tooltip from "$lib/components/ui/tooltip";
   import { toast } from "svelte-sonner";
 
@@ -30,26 +30,24 @@
       <p class="text-xs text-gray-400">{sticker.width}x{sticker.height}</p>
     </div>
     <div>
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger
-            class={buttonVariants({ variant: "ghost" })}
-            onclick={() =>
-              copy(
-                sticker.emojis
-                  .map((x) => `:${x}:`)
-                  .map((x, i) => {
-                    if ((i + 1) % sticker.width === 0) return x + "\n";
-                    return x;
-                  })
-                  .join(""),
-              )}><ClipboardCopy /></Tooltip.Trigger
-          >
-          <Tooltip.Content>
-            <p>Copy Slack emojis to clipboard</p>
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
+      <Tooltip.Root>
+        <Tooltip.Trigger
+          class={buttonVariants({ variant: "ghost" })}
+          onclick={() =>
+            copy(
+              sticker.emojis
+                .map((x) => `:${x}:`)
+                .map((x, i) => {
+                  if ((i + 1) % sticker.width === 0) return x + "\n";
+                  return x;
+                })
+                .join(""),
+            )}><ClipboardCopy /></Tooltip.Trigger
+        >
+        <Tooltip.Content>
+          <p>Copy Slack emojis to clipboard</p>
+        </Tooltip.Content>
+      </Tooltip.Root>
     </div>
   </div>
 
