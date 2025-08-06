@@ -21,7 +21,9 @@
         "DATABASE_URL",
         "JWT_SIGNING_SECRET",
         "BASE_URL",
-        "EMOJI_CACHE_UPDATE_TOKEN"
+        "EMOJI_CACHE_UPDATE_TOKEN",
+        "PUBLIC_EMOJI_CACHE_GET_URL",
+        "EMOJI_CACHE_UPDATE_URL"
       ]
     },
     "dev": {
