@@ -7,6 +7,20 @@ import { db } from "@repo/db/client";
 
 import { env } from "./env";
 
+async function updateEmojiCache() {
+  if (!env.EMOJI_CACHE_UPDATE_URL || !env.EMOJI_CACHE_UPDATE_TOKEN) return;
+  try {
+    await fetch(env.EMOJI_CACHE_UPDATE_URL, {
+      method: "POST",
+      headers: {
+        "X-Token": env.EMOJI_CACHE_UPDATE_TOKEN,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+  }
+}
+
 function secondsToNice(seconds: number) {
   if (seconds >= 60) {
     return `${Math.floor(seconds / 60)}min ${seconds % 60}s`;
@@ -223,6 +237,8 @@ export async function createSticker({
       });
     }
   }
+
+  await updateEmojiCache();
 
   return emojis;
 }

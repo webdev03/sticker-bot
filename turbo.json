@@ -9,12 +9,19 @@
       "dependsOn": ["^build"],
       "outputs": [".vercel/output/**", ".svelte-kit/output/**"],
       "env": [
-        "DATABASE_URL",
-        "BASE_URL",
-        "JWT_SIGNING_SECRET",
+        "SLACK_TEAM",
+        "SLACK_SIGNING_SECRET",
+        "SLACK_BOT_TOKEN",
+        "SLACK_APP_TOKEN",
         "SLACK_CLIENT_ID",
         "SLACK_CLIENT_SECRET",
-        "SLACK_TEAM"
+        "SLACK_USER_XOXC",
+        "SLACK_COOKIE",
+        "SLACK_CHANNELS",
+        "DATABASE_URL",
+        "JWT_SIGNING_SECRET",
+        "BASE_URL",
+        "EMOJI_CACHE_UPDATE_TOKEN"
       ]
     },
     "dev": {

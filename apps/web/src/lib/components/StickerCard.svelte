@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { ClipboardCopy } from "@lucide/svelte";
+  import { ClipboardCopy, ThumbsUp } from "@lucide/svelte";
   import { buttonVariants } from "$lib/components/ui/button";
   import * as Tooltip from "$lib/components/ui/tooltip";
+  import { getURL } from "$lib/sticker-cache";
   import { toast } from "svelte-sonner";
 
   import type { Sticker } from "../../routes/(authed)/app/api/stickers/+server";
@@ -12,6 +13,30 @@
       success: "Copied to clipboard!",
       error: "Failed to copy to clipboard!",
     });
+  }
+
+  function toggleLike(sticker: Sticker) {
+    toast.promise(
+      (async () => {
+        const res = await fetch("/app/api/stickers/like", {
+          method: "POST",
+          body: JSON.stringify({
+            id: sticker.id,
+            liked: !sticker.likedByMe,
+          }),
+        });
+        if (res.ok) sticker.likedByMe = !sticker.likedByMe;
+        else
+          throw new Error(
+            "Failed to like/unlike: " + res.status + res.statusText,
+          );
+      })(),
+      {
+        loading: "Processing...",
+        success: () => (sticker.likedByMe ? "Liked!" : "Removed like!"),
+        error: "Failed to process action!",
+      },
+    );
   }
 
   let { sticker }: { sticker: Sticker } = $props();
@@ -29,7 +54,22 @@
       </p>
       <p class="text-xs text-gray-400">{sticker.width}x{sticker.height}</p>
     </div>
-    <div>
+    <div class="space-x-2 flex">
+      <Tooltip.Root>
+        <Tooltip.Trigger
+          class={(sticker.likedByMe ? "bg-blue-300" : "") +
+            " " +
+            buttonVariants({ variant: "ghost" })}
+          onclick={() => toggleLike(sticker)}><ThumbsUp /></Tooltip.Trigger
+        >
+        <Tooltip.Content>
+          {#if sticker.likedByMe}
+            <p>Remove like</p>
+          {:else}
+            <p>Like sticker</p>
+          {/if}
+        </Tooltip.Content>
+      </Tooltip.Root>
       <Tooltip.Root>
         <Tooltip.Trigger
           class={buttonVariants({ variant: "ghost" })}
@@ -56,11 +96,15 @@
     style={`grid-template-columns: repeat(${sticker.width}, minmax(0, 1fr));`}
   >
     {#each sticker.emojis as emoji, i}
-      <img
-        class="emoji-sync inline p-0 m-0 h-8 w-8"
-        src={`https://cachet.dunkirk.sh/emojis/${emoji}/r`}
-        alt={`Emoji ${i + 1}`}
-      />
+      {#await getURL(emoji)}
+        <div class="inline p-0 w-8 h-8"></div>
+      {:then emojiUrl}
+        <img
+          class="emoji-sync inline p-0 m-0 h-8 w-8"
+          src={emojiUrl}
+          alt={`Emoji ${i + 1}`}
+        />
+      {/await}
     {/each}
   </div>
 </div>

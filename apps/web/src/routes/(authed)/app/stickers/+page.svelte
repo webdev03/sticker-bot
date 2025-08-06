@@ -25,7 +25,7 @@
           if (newStickers.length === 0) loading = false;
           else stickers.push(...newStickers);
 
-          await tick(); // wait for emojis to be added to DOM
+          for (let i = 0; i < 3; i++) await tick(); // wait for emojis to be added to DOM
 
           // synchronise all the animations once they have loaded
           // this also runs for non-animated images but its fine
