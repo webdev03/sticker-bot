@@ -13,18 +13,18 @@ export const GET: RequestHandler = async ({ url, locals }) => {
   const cursor = Number(url.searchParams.get("cursor"));
   const userId = locals.auth.user;
 
-  const rows = await db
-    .select()
-    .from(stickers)
-    .where(cursor ? lt(stickers.id, cursor) : undefined)
-    .limit(15)
-    .orderBy(desc(stickers.id));
+  const rows = await db.query.stickers.findMany({
+    where: cursor ? lt(stickers.id, cursor) : undefined,
+    with: { likes: true },
+    orderBy: desc(stickers.id),
+    limit: 15,
+  });
 
   const stickersSafe = rows.map((sticker) => {
     const { likes, ...stickerData } = sticker; // remove 'likes' from data to prevent leak of users who liked a sticker
     return {
       ...stickerData,
-      likedByMe: sticker.likes.includes(userId),
+      likedByMe: sticker.likes.some((x) => x.userId === userId),
     };
   });
 
