@@ -12,7 +12,7 @@ export const POST: RequestHandler = async ({ url, locals, request }) => {
 
   const req = await request.json();
   const newLiked = req["liked"] === true;
-  const stickerId = req["id"];
+  const stickerId = Number(req["id"]);
 
   const userId = locals.auth.user;
 

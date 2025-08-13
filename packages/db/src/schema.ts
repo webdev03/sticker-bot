@@ -6,6 +6,7 @@ import {
   serial,
   text,
   timestamp,
+  unique,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -21,13 +22,17 @@ export const stickers = pgTable("stickers", {
   slackPermalink: text().notNull(),
 });
 
-export const stickerLikes = pgTable("sticker_likes", {
-  id: serial("id").primaryKey(),
-  stickerId: integer("sticker_id")
-    .notNull()
-    .references(() => stickers.id, { onDelete: "cascade" }),
-  userId: varchar("user_id", { length: 255 }).notNull(), // the Slack ID of the user who liked the sticker
-});
+export const stickerLikes = pgTable(
+  "sticker_likes",
+  {
+    id: serial("id").primaryKey(),
+    stickerId: integer("sticker_id")
+      .notNull()
+      .references(() => stickers.id, { onDelete: "cascade" }),
+    userId: varchar("user_id", { length: 255 }).notNull(), // the Slack ID of the user who liked the sticker
+  },
+  (t) => [unique().on(t.stickerId, t.userId)],
+);
 
 export const stickersRelations = relations(stickers, ({ many }) => ({
   likes: many(stickerLikes),
