@@ -12,6 +12,7 @@ export const env = createEnv({
     DATABASE_URL: z.string().min(1),
     EMOJI_CACHE_UPDATE_URL: z.string().min(1).optional(),
     EMOJI_CACHE_UPDATE_TOKEN: z.string().min(1).optional(),
+    BASE_URL: z.string().min(1).optional(),
   },
   runtimeEnv: process.env,
   emptyStringAsUndefined: true,

@@ -402,6 +402,12 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
     text: `<@${message.user}> Done!`,
   });
 
+  await client.chat.postMessage({
+    channel: channelId,
+    thread_ts: message.ts,
+    text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}`,
+  });
+
   reservedTitles.delete(title);
 });
 
@@ -536,6 +542,12 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
     channel: body.channel.id,
     thread_ts: message.ts,
     text: `<@${message.user}> Done!`,
+  });
+
+  await client.chat.postMessage({
+    channel: body.channel.id,
+    thread_ts: message.ts,
+    text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}`,
   });
 
   reservedTitles.delete(title);
