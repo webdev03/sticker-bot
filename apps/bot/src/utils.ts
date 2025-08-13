@@ -75,7 +75,7 @@ export async function uploadEmoji({
 }: {
   emojiName: string;
   teamDomain: string;
-  image: Buffer;
+  image: Buffer<ArrayBuffer>; // don't ask why this works
   type: string;
 }) {
   // logic is based from github.com/taciturnaxolotl/emojibot
@@ -216,7 +216,7 @@ export async function createSticker({
       await uploadEmoji({
         emojiName: emojiName,
         teamDomain: teamDomain,
-        image: buf,
+        image: Buffer.from(buf), // don't ask why this works
         type: (await newImg.metadata()).format,
       });
       emojis.push(emojiName);
