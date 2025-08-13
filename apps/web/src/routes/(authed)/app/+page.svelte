@@ -9,7 +9,7 @@
 <h1 class="text-2xl font-semibold">Hello, {data.auth.name}!</h1>
 
 <h2 class="text-xl">Liked Stickers</h2>
-<p class="italic">
+<p class="italic mb-3">
   To add a sticker to this list, press the like button in the Sticker Gallery!
 </p>
 

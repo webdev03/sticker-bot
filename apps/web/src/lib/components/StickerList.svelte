@@ -8,7 +8,10 @@
   let stickers: Sticker[] = $state([]);
   let loading = $state(true);
 
-  let { likedOnly = false }: { likedOnly?: boolean } = $props();
+  let {
+    likedOnly = false,
+    search = $bindable(),
+  }: { likedOnly?: boolean; search?: string } = $props();
 
   let intersectionCanary: HTMLDivElement;
 
@@ -64,9 +67,11 @@
   });
 </script>
 
-<div class="columns-1 md:columns-2 xl:columns-3 gap-3 py-6 *:mb-3">
+<div class="columns-1 md:columns-2 xl:columns-3 gap-3 *:mb-3">
   {#each stickers as sticker}
-    <StickerCard {sticker} />
+    {#if !search || (search && sticker.title.includes(search))}
+      <StickerCard {sticker} />
+    {/if}
   {:else}
     {#if !loading}
       <p>No stickers yet!</p>
