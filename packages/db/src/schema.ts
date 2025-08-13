@@ -35,7 +35,7 @@ export const stickerLikes = pgTable(
 );
 
 export const stickersRelations = relations(stickers, ({ many }) => ({
-  likes: many(stickerLikes),
+  stickerLikes: many(stickerLikes),
 }));
 
 export const stickerLikesRelations = relations(stickerLikes, ({ one }) => ({

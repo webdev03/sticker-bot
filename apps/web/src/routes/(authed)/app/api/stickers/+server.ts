@@ -1,9 +1,9 @@
 import { json } from "@sveltejs/kit";
 import { assertUserExists } from "$lib/server/assertion";
 
-import { desc, lt } from "@repo/db";
+import { and, desc, eq, exists, lt } from "@repo/db";
 import { db } from "@repo/db/client";
-import { stickers } from "@repo/db/schema";
+import { stickerLikes, stickers } from "@repo/db/schema";
 
 import type { RequestHandler } from "./$types";
 
@@ -12,19 +12,35 @@ export const GET: RequestHandler = async ({ url, locals }) => {
 
   const cursor = Number(url.searchParams.get("cursor"));
   const userId = locals.auth.user;
+  const likedOnly = url.searchParams.get("liked") === "true";
 
   const rows = await db.query.stickers.findMany({
-    where: cursor ? lt(stickers.id, cursor) : undefined,
-    with: { likes: true },
+    where: and(
+      cursor ? lt(stickers.id, cursor) : undefined,
+      likedOnly
+        ? exists(
+            db
+              .select()
+              .from(stickerLikes)
+              .where(
+                and(
+                  eq(stickerLikes.stickerId, stickers.id),
+                  eq(stickerLikes.userId, userId),
+                ),
+              ),
+          )
+        : undefined,
+    ),
+    with: { stickerLikes: true },
     orderBy: desc(stickers.id),
     limit: 15,
   });
 
   const stickersSafe = rows.map((sticker) => {
-    const { likes, ...stickerData } = sticker; // remove 'likes' from data to prevent leak of users who liked a sticker
+    const { stickerLikes, ...stickerData } = sticker; // remove 'stickerLikes' from data to prevent leak of users who liked a sticker
     return {
       ...stickerData,
-      likedByMe: sticker.likes.some((x) => x.userId === userId),
+      likedByMe: sticker.stickerLikes.some((x) => x.userId === userId),
     };
   });
 
