@@ -64,7 +64,7 @@
   });
 </script>
 
-<div class="columns-1 md:columns-2 xl:columns-3 gap-3 p-4 py-6 *:mb-3">
+<div class="columns-1 md:columns-2 xl:columns-3 gap-3 py-6 *:mb-3">
   {#each stickers as sticker}
     <StickerCard {sticker} />
   {:else}
