@@ -13,7 +13,7 @@ import {
   recommendedStickerDimensions,
 } from "./utils";
 
-const ALLOWED_CHANNELS = env["SLACK_CHANNELS"]!.split(",") // split comma-separated list
+const ALLOWED_CHANNELS = env.PUBLIC_SLACK_CHANNELS.split(",") // split comma-separated list
   .map((x) => x.trim()); // trim whitespace
 
 const reservedTitles = new Set(); // when the button is clicked to start creating a sticker, it is added here, to prevent duplication

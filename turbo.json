@@ -10,6 +10,7 @@
       "outputs": [".vercel/output/**", ".svelte-kit/output/**"],
       "env": [
         "SLACK_TEAM",
+        "PUBLIC_SLACK_TEAM_DOMAIN",
         "SLACK_SIGNING_SECRET",
         "SLACK_BOT_TOKEN",
         "SLACK_APP_TOKEN",
@@ -17,7 +18,7 @@
         "SLACK_CLIENT_SECRET",
         "SLACK_USER_XOXC",
         "SLACK_COOKIE",
-        "SLACK_CHANNELS",
+        "PUBLIC_SLACK_CHANNELS",
         "DATABASE_URL",
         "JWT_SIGNING_SECRET",
         "BASE_URL",

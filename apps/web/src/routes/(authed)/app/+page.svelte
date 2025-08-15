@@ -1,4 +1,5 @@
 <script lang="ts">
+  import OpenSlackChannel from "$lib/components/OpenSlackChannel.svelte";
   import StickerList from "$lib/components/StickerList.svelte";
 
   import type { PageData } from "./$types";
@@ -7,6 +8,10 @@
 </script>
 
 <h1 class="text-2xl font-semibold">Hello, {data.auth.name}!</h1>
+
+<div class="my-3">
+  <OpenSlackChannel />
+</div>
 
 <h2 class="text-xl">Liked Stickers</h2>
 <p class="italic mb-3">
