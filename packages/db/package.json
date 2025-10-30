@@ -20,15 +20,15 @@
     "@repo/prettier": "workspace:*",
     "@repo/tsconfig": "workspace:*",
     "@types/bun": "latest",
-    "drizzle-kit": "^0.31.4",
+    "drizzle-kit": "^0.31.6",
     "prettier": "catalog:"
   },
   "peerDependencies": {
-    "typescript": "catalog:"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@neondatabase/serverless": "^1.0.1",
-    "drizzle-orm": "^0.44.2"
+    "@neondatabase/serverless": "^1.0.2",
+    "drizzle-orm": "^0.44.7"
   },
   "prettier": "@repo/prettier"
 }

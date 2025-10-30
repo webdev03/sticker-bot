@@ -14,18 +14,18 @@
     "@repo/tsconfig": "workspace:*",
     "@repo/prettier": "workspace:*",
     "@types/bun": "latest",
-    "dotenv-cli": "catalog:",
+    "dotenv-cli": "^8.0.0",
     "prettier": "catalog:"
   },
   "peerDependencies": {
-    "typescript": "catalog:"
+    "typescript": "^5.9.3"
   },
   "dependencies": {
     "@repo/db": "workspace:*",
-    "@slack/bolt": "^4.4.0",
-    "@t3-oss/env-core": "catalog:",
-    "sharp": "^0.34.2",
-    "zod": "catalog:"
+    "@slack/bolt": "^4.6.0",
+    "@t3-oss/env-core": "^0.13.8",
+    "sharp": "^0.34.4",
+    "zod": "^4.1.12"
   },
   "prettier": "@repo/prettier"
 }
