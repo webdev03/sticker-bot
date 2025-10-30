@@ -6,9 +6,9 @@ import {
   SLACK_CLIENT_ID,
   SLACK_CLIENT_SECRET,
 } from "$env/static/private";
-import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 
+import { eq } from "@repo/db";
 import { db } from "@repo/db/client";
 import { authAttempt } from "@repo/db/schema";
 
