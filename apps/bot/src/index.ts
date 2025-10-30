@@ -8,6 +8,7 @@ import { stickers } from "@repo/db/schema";
 import { env } from "./env";
 import {
   createSticker,
+  deleteEmojis,
   formatSticker,
   isImageFile,
   recommendedStickerDimensions,
@@ -405,7 +406,7 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
   await client.chat.postMessage({
     channel: channelId,
     thread_ts: message.ts,
-    text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}`,
+    text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}\nTo delete this sticker, run: /delete-sticker ${title}`,
   });
 
   reservedTitles.delete(title);
@@ -555,7 +556,7 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
 
 // it's a regex to allow for other names like `sticker-dev` to work
 // because slack only allows one app to use a sticker name but you may need to have a separate development app
-app.command(/sticker.*/, async ({ command, ack, respond }) => {
+app.command(/\/sticker.*/, async ({ command, ack, respond }) => {
   await ack();
 
   const stickerQuery = command.text.trim().toLowerCase();
@@ -582,6 +583,32 @@ app.command(/sticker.*/, async ({ command, ack, respond }) => {
   await respond(
     `I found a sticker called "${sticker.title}"!\n\n${formatSticker(sticker.emojis, sticker.width)}`,
   );
+});
+
+app.command(/\/delete-sticker.*/, async ({ command, ack, respond }) => {
+  await ack();
+
+  const stickerTitle = command.text.trim().toLowerCase();
+
+  const sticker = await db.query.stickers.findFirst({
+    where: eq(stickers.title, stickerTitle),
+  });
+
+  if (!sticker) return await respond("I couldn't find that sticker.");
+
+  if (sticker.creator !== command.user_id)
+    return await respond("You didn't create that sticker.");
+
+  await respond("I'm deleting the sticker now.");
+
+  await deleteEmojis({
+    emojis: sticker.emojis,
+    teamDomain: command.team_domain,
+  });
+
+  await db.delete(stickers).where(eq(stickers.title, stickerTitle));
+
+  await respond("The sticker has been deleted!");
 });
 
 await app.start();

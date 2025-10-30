@@ -67,6 +67,28 @@ export function isImageFile(mimeType: string): boolean {
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+export async function deleteEmojis({
+  emojis,
+  teamDomain,
+}: {
+  emojis: string[];
+  teamDomain: string;
+}) {
+  for (const emoji of emojis) {
+    const removeForm = new FormData();
+    removeForm.append("token", env.SLACK_USER_XOXC);
+    removeForm.append("name", emoji);
+
+    await fetch(`https://${teamDomain}.slack.com/api/emoji.remove`, {
+      method: "POST",
+      body: removeForm,
+      headers: {
+        Cookie: env.SLACK_COOKIE,
+      },
+    });
+  }
+}
+
 export async function uploadEmoji({
   emojiName,
   teamDomain,

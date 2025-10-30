@@ -13,7 +13,13 @@
     "slash_commands": [
       {
         "command": "/sticker",
-        "description": "Get a specific sticker!",
+        "description": "Gets a sticker",
+        "usage_hint": "[name]",
+        "should_escape": false
+      },
+      {
+        "command": "/delete-sticker",
+        "description": "Deletes a sticker you made",
         "usage_hint": "[name]",
         "should_escape": false
       }
