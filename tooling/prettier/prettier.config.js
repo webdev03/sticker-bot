@@ -8,7 +8,11 @@
  * @type {PrettierConfig & SortImportsConfig & SvelteConfig}
  */
 const config = {
-  plugins: ["@ianvs/prettier-plugin-sort-imports", "prettier-plugin-svelte"],
+  plugins: [
+    await import("@prettier/plugin-oxc"),
+    await import("@ianvs/prettier-plugin-sort-imports"),
+    await import("prettier-plugin-svelte"),
+  ],
   importOrder: [
     "<TYPES>",
     "^node:(.*)$",
