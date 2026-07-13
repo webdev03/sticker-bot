@@ -548,7 +548,7 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
   await client.chat.postMessage({
     channel: body.channel.id,
     thread_ts: message.ts,
-    text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}`,
+    text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}\nTo delete this sticker, run: /delete-sticker ${title}`,
   });
 
   reservedTitles.delete(title);
