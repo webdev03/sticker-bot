@@ -1,9 +1,10 @@
+import type { KnownBlock } from "@slack/types";
 import { App } from "@slack/bolt";
 import sharp from "sharp";
 
-import { asc, eq, sql } from "@repo/db";
+import { and, desc, eq, exists, sql } from "@repo/db";
 import { db } from "@repo/db/client";
-import { stickers } from "@repo/db/schema";
+import { stickerLikes, stickers } from "@repo/db/schema";
 
 import { env } from "./env";
 import {
@@ -14,10 +15,241 @@ import {
   recommendedStickerDimensions,
 } from "./utils";
 
+const reservedTitles = new Set(); // when the button is clicked to start creating a sticker, it is added here, to prevent duplication
+
 const ALLOWED_CHANNELS = env.PUBLIC_SLACK_CHANNELS.split(",") // split comma-separated list
   .map((x) => x.trim()); // trim whitespace
 
-const reservedTitles = new Set(); // when the button is clicked to start creating a sticker, it is added here, to prevent duplication
+const SEARCH_RESULT_LIMIT = 5;
+const BROWSE_SECTION_RESULT_LIMIT = 3;
+const SEARCH_QUERY_MAX_LENGTH = 80;
+const SEARCH_ACTION_ID = "sticker_search_select";
+
+type Sticker = typeof stickers.$inferSelect;
+
+function normalizeSearchQuery(query: string) {
+  return query
+    .trim()
+    .toLowerCase()
+    .replace(/[-_+]+/g, " ")
+    .replace(/\s+/g, " ");
+}
+
+function stickerPreviewBlocks(sticker: Sticker): KnownBlock[] {
+  const rows = formatSticker(sticker.emojis, sticker.width)
+    .trimEnd()
+    .split("\n");
+  const chunks: string[] = [];
+  let chunk = "";
+
+  for (const row of rows) {
+    const nextChunk = chunk ? `${chunk}\n${row}` : row;
+    if (nextChunk.length <= 2800) {
+      chunk = nextChunk;
+      continue;
+    }
+
+    if (chunk) chunks.push(chunk);
+    chunk = row;
+  }
+
+  if (chunk) chunks.push(chunk);
+
+  return chunks.map((text) => ({
+    type: "section",
+    text: { type: "mrkdwn", text },
+  }));
+}
+
+function appendStickerResultBlocks({
+  blocks,
+  results,
+  previewAll,
+  primaryFirst = false,
+}: {
+  blocks: KnownBlock[];
+  results: Sticker[];
+  previewAll: boolean;
+  primaryFirst?: boolean;
+}) {
+  results.forEach((sticker, index) => {
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${sticker.title}*\n${sticker.width}×${sticker.height} • created by <@${sticker.creator}>`,
+      },
+      accessory: {
+        type: "button",
+        action_id: SEARCH_ACTION_ID,
+        value: String(sticker.id),
+        text: { type: "plain_text", text: "Send sticker", emoji: true },
+        style: index === 0 && primaryFirst ? "primary" : undefined,
+      },
+    });
+
+    if (previewAll || index === 0) {
+      blocks.push(...stickerPreviewBlocks(sticker));
+    }
+  });
+}
+
+function browseResultBlocks({
+  likedResults,
+  recentResults,
+}: {
+  likedResults: Sticker[];
+  recentResults: Sticker[];
+}): KnownBlock[] {
+  const blocks: KnownBlock[] = [
+    {
+      type: "header",
+      text: { type: "plain_text", text: "Your sticker collection", emoji: true },
+    },
+  ];
+
+  blocks.push({
+    type: "section",
+    text: { type: "mrkdwn", text: "*Your favourites*" },
+  });
+
+  if (likedResults.length > 0) {
+    appendStickerResultBlocks({
+      blocks,
+      results: likedResults,
+      previewAll: true,
+    });
+  } else {
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "plain_text",
+          text: "You haven't liked any stickers yet.",
+          emoji: true,
+        },
+      ],
+    });
+  }
+
+  blocks.push(
+    { type: "divider" },
+    {
+      type: "section",
+      text: { type: "mrkdwn", text: "*Recently added*" },
+    },
+  );
+
+  if (recentResults.length > 0) {
+    appendStickerResultBlocks({
+      blocks,
+      results: recentResults,
+      previewAll: true,
+    });
+  } else {
+    blocks.push({
+      type: "context",
+      elements: [
+        {
+          type: "plain_text",
+          text: "There aren't any other recent stickers to show.",
+          emoji: true,
+        },
+      ],
+    });
+  }
+
+  blocks.push({
+    type: "context",
+    elements: [
+      {
+        type: "mrkdwn",
+        text: `<${env.BASE_URL}|Browse all stickers and manage your favourites>`,
+      },
+    ],
+  });
+
+  return blocks;
+}
+
+function searchResultBlocks({
+  query,
+  results,
+}: {
+  query?: string;
+  results: Sticker[];
+}): KnownBlock[] {
+  const isBrowsing = !query;
+
+  if (results.length === 0) {
+    return [
+      {
+        type: "header",
+        text: { type: "plain_text", text: "No stickers found", emoji: true },
+      },
+      {
+        type: "section",
+        text: {
+          type: "plain_text",
+          text: query
+            ? `Nothing matched “${query}”. Try fewer words, check the spelling, or search for part of the name.`
+            : "There aren't any stickers to browse yet.",
+        },
+      },
+      {
+        type: "context",
+        elements: [
+          {
+            type: "mrkdwn",
+            text: `You can also <${env.BASE_URL}|browse the full sticker library>.`,
+          },
+        ],
+      },
+    ];
+  }
+
+  const blocks: KnownBlock[] = [
+    {
+      type: "header",
+      text: {
+        type: "plain_text",
+        text: isBrowsing ? "Recently added stickers" : "Sticker search",
+        emoji: true,
+      },
+    },
+    {
+      type: "context",
+      elements: [
+        {
+          type: "plain_text",
+          text: isBrowsing
+            ? "Choose a sticker to send to this conversation."
+            : `${results.length} ${results.length === 1 ? "match" : "matches"} for “${query}” • best match first`,
+          emoji: true,
+        },
+      ],
+    },
+  ];
+
+  appendStickerResultBlocks({
+    blocks,
+    results,
+    previewAll: isBrowsing,
+    primaryFirst: !isBrowsing,
+  });
+
+  blocks.push({
+    type: "context",
+    elements: [
+      {
+        type: "mrkdwn",
+        text: `<${env.BASE_URL}|Browse the full library> • Run \`/sticker\` with no search to see recent additions.`,
+      },
+    ],
+  });
+
+  return blocks;
+}
 
 export const app = new App({
   socketMode: true,
@@ -559,30 +791,152 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
 app.command(/\/sticker.*/, async ({ command, ack, respond }) => {
   await ack();
 
-  const stickerQuery = command.text.trim().toLowerCase();
+  const rawQuery = command.text.trim();
 
-  // Levenshtein algorithm is used here for basic typo correction
-  const sticker = (
-    await db
-      .select()
-      .from(stickers)
-      .orderBy(asc(sql`levenshtein(${stickers.title}, ${stickerQuery})`))
-      .where(
-        sql`levenshtein_less_equal(${stickers.title}, ${stickerQuery}, 5) <= 5`, // levenshtein_less_equal is more efficient
-      )
-      .limit(1)
-  )[0];
-
-  if (!sticker) {
-    await respond(
-      `Unfortunately, I couldn't find a sticker named "${stickerQuery}" - maybe create it?`,
-    );
+  if (rawQuery.length > SEARCH_QUERY_MAX_LENGTH) {
+    await respond({
+      response_type: "ephemeral",
+      text: "That search is a little too long.",
+      blocks: [
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `*That search is a little too long.*\nKeep it under ${SEARCH_QUERY_MAX_LENGTH} characters and try again.`,
+          },
+        },
+      ],
+    });
     return;
   }
 
-  await respond(
-    `I found a sticker called "${sticker.title}"!\n\n${formatSticker(sticker.emojis, sticker.width)}`,
-  );
+  const stickerQuery = normalizeSearchQuery(rawQuery);
+  let results: Sticker[];
+  let likedResults: Sticker[] = [];
+
+  if (!stickerQuery) {
+    const [userLikes, recentCandidates] = await Promise.all([
+      db.query.stickers.findMany({
+        where: exists(
+          db
+            .select()
+            .from(stickerLikes)
+            .where(
+              and(
+                eq(stickerLikes.stickerId, stickers.id),
+                eq(stickerLikes.userId, command.user_id),
+              ),
+            ),
+        ),
+        orderBy: desc(stickers.createdAt),
+        limit: BROWSE_SECTION_RESULT_LIMIT,
+      }),
+      db
+        .select()
+        .from(stickers)
+        .orderBy(desc(stickers.createdAt))
+        .limit(BROWSE_SECTION_RESULT_LIMIT * 2),
+    ]);
+
+    likedResults = userLikes;
+    const likedStickerIds = new Set(userLikes.map((sticker) => sticker.id));
+    results = recentCandidates
+      .filter((sticker) => !likedStickerIds.has(sticker.id))
+      .slice(0, BROWSE_SECTION_RESULT_LIMIT);
+  } else {
+    // treat common name separators as spaces
+    const normalizedTitle = sql<string>`regexp_replace(${stickers.title}, '[-_+]+', ' ', 'g')`;
+    const distance = sql<number>`levenshtein(${normalizedTitle}, ${stickerQuery})`;
+    const fuzzyLimit = Math.min(
+      4,
+      Math.max(1, Math.floor(stickerQuery.length / 4)),
+    );
+    const terms = stickerQuery.split(" ").slice(0, 8);
+    const containsEveryTerm = sql.join(
+      terms.map((term) => sql`position(${term} in ${normalizedTitle}) > 0`),
+      sql` and `,
+    );
+
+    results = await db
+      .select()
+      .from(stickers)
+      .where(
+        sql`(${containsEveryTerm}) or levenshtein_less_equal(${normalizedTitle}, ${stickerQuery}, ${fuzzyLimit}) <= ${fuzzyLimit}`,
+      )
+      .orderBy(
+        sql`case
+          when ${normalizedTitle} = ${stickerQuery} then 0
+          when position(${stickerQuery} in ${normalizedTitle}) = 1 then 1
+          when position(${stickerQuery} in ${normalizedTitle}) > 1 then 2
+          else 3
+        end`,
+        distance,
+        stickers.title,
+      )
+      .limit(SEARCH_RESULT_LIMIT);
+  }
+
+  await respond({
+    response_type: "ephemeral",
+    text: stickerQuery
+      ? `${results.length} sticker search results for ${rawQuery}`
+      : "Your favourite and recently added stickers",
+    blocks: stickerQuery
+      ? searchResultBlocks({ query: rawQuery, results })
+      : browseResultBlocks({ likedResults, recentResults: results }),
+  });
+});
+
+app.action(SEARCH_ACTION_ID, async ({ action, ack, body, client, respond }) => {
+  await ack();
+
+  if (action.type !== "button" || !body.channel?.id) return;
+
+  const stickerId = Number(action.value);
+  if (!Number.isSafeInteger(stickerId)) return;
+
+  const sticker = await db.query.stickers.findFirst({
+    where: eq(stickers.id, stickerId),
+  });
+
+  if (!sticker) {
+    await respond({
+      replace_original: true,
+      response_type: "ephemeral",
+      text: "That sticker is no longer available.",
+    });
+    return;
+  }
+
+  try {
+    await client.chat.postMessage({
+      channel: body.channel.id,
+      text: `${formatSticker(sticker.emojis, sticker.width)}_Requested by <@${body.user.id}>_`,
+    });
+  } catch (error) {
+    app.logger.error("Couldn't send sticker from search", error);
+    await respond({
+      replace_original: true,
+      response_type: "ephemeral",
+      text: `I couldn't send "${sticker.title}". Please try again.`,
+    });
+    return;
+  }
+
+  await respond({
+    replace_original: true,
+    response_type: "ephemeral",
+    text: `Sent “${sticker.title}” to the conversation.`,
+    blocks: [
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: `:white_check_mark: Sent *${sticker.title}* to the conversation.`,
+        },
+      },
+    ],
+  });
 });
 
 app.command(/\/delete-sticker.*/, async ({ command, ack, respond }) => {
