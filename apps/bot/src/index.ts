@@ -8,6 +8,12 @@ import { stickerLikes, stickers } from "@repo/db/schema";
 
 import { env } from "./env";
 import {
+  downloadSlackImage,
+  IMAGE_OPTIONS,
+  validDimensions,
+  validateImageMetadata,
+} from "./security.ts";
+import {
   createSticker,
   deleteEmojis,
   formatSticker,
@@ -104,7 +110,11 @@ function browseResultBlocks({
   const blocks: KnownBlock[] = [
     {
       type: "header",
-      text: { type: "plain_text", text: "Your sticker collection", emoji: true },
+      text: {
+        type: "plain_text",
+        text: "Your sticker collection",
+        emoji: true,
+      },
     },
   ];
 
@@ -280,7 +290,7 @@ app.message(async ({ client, message }) => {
     message.text.length < 1 ||
     message.text
       .split("")
-      .filter((x) => !"abcdefghijklmnopqrstuvwxyz1234567890-_+'".includes(x))
+      .filter((x) => !"abcdefghijklmnopqrstuvwxyz1234567890-_".includes(x))
       .length !== 0
   ) {
     await client.chat.postMessage({
@@ -313,18 +323,8 @@ app.message(async ({ client, message }) => {
   }
 
   const imageMeta = await sharp(
-    await (
-      await fetch(file.url_private!, {
-        method: "GET",
-        headers: {
-          // We aren't using `Jimp.read()` because we need to pass the Authorization header
-          Authorization: "Bearer " + env.SLACK_BOT_TOKEN,
-        },
-      })
-    ).arrayBuffer(),
-    {
-      animated: true,
-    },
+    await downloadSlackImage(file.url_private!, env.SLACK_BOT_TOKEN),
+    IMAGE_OPTIONS,
   ).metadata();
 
   if (imageMeta.pages && imageMeta.pages > 50) {
@@ -335,6 +335,8 @@ app.message(async ({ client, message }) => {
     });
     return;
   }
+
+  validateImageMetadata(imageMeta);
 
   const recommended = recommendedStickerDimensions(
     imageMeta.width,
@@ -421,7 +423,9 @@ app.action("custom", async ({ client, action, body, ack }) => {
     body.type !== "block_actions" ||
     !body.actions[0] ||
     !body.channel ||
-    !body.message
+    !body.message ||
+    !body.message.thread_ts ||
+    !ALLOWED_CHANNELS.includes(body.channel.id)
   )
     return;
 
@@ -517,10 +521,10 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
   if (body.type !== "view_submission") return;
   const width = Number(view.state.values.width?.width?.value);
   const height = Number(view.state.values.height?.height?.value);
-  if (!width || Number.isNaN(width) || !height || Number.isNaN(height)) return;
+  if (!validDimensions(width, height)) return;
 
   const [channelId, messageTs] = view.private_metadata.split(";;");
-  if (!channelId || !messageTs) return;
+  if (!channelId || !messageTs || !ALLOWED_CHANNELS.includes(channelId)) return;
 
   const message = (
     await client.conversations.history({
@@ -563,89 +567,103 @@ app.view("custom_dimensions", async ({ client, body, view, ack }) => {
     return;
   }
 
+  if (reservedTitles.size >= 2 || reservedTitles.has(title)) {
+    await client.chat.postEphemeral({
+      channel: channelId,
+      user: body.user.id,
+      text: "The bot is busy creating stickers. Please try again shortly.",
+    });
+    return;
+  }
   reservedTitles.add(title);
-
-  // This reaction is supposed to show that the sticker is being processed
-  await client.reactions.add({
-    channel: channelId,
-    name: "thinking_face",
-    timestamp: message.ts!,
-  });
-
-  console.log("creating sticker '", title, "' for", message.user);
-
-  const emojis = await createSticker({
-    fileUrl: file.url_private!,
-    teamDomain: body.team!.domain,
-    title: title,
-    width: width,
-    height: height,
-    channel: channelId,
-    timestamp: message.ts!,
-    app: app,
-  });
-
   try {
-    await client.reactions.remove({
+    // This reaction is supposed to show that the sticker is being processed
+    await client.reactions.add({
       channel: channelId,
       name: "thinking_face",
       timestamp: message.ts!,
     });
-  } catch {}
 
-  const stickerMessage = await client.chat.postMessage({
-    channel: channelId,
-    thread_ts: message.ts,
-    text: formatSticker(emojis, width),
-  });
+    console.log("creating sticker '", title, "' for", message.user);
 
-  if (!stickerMessage.ok) throw Error("Couldn't send sticker message");
-  if (!stickerMessage.ts)
-    throw Error("Couldn't get timestamp of sticker message");
-
-  const permalink = (
-    await client.chat.getPermalink({
-      channel: channelId,
-      message_ts: stickerMessage.ts,
-    })
-  ).permalink;
-  if (!permalink) throw Error("Couldn't get permalink");
-
-  try {
-    await db.insert(stickers).values({
+    const emojis = await createSticker({
+      fileUrl: file.url_private!,
       title: title,
-      creator: message.user,
-      emojis: emojis,
       width: width,
       height: height,
-      slackPermalink: permalink,
+      channel: channelId,
+      timestamp: message.ts!,
+      app: app,
     });
-  } catch (error) {
-    console.error("error saving sticker:", error);
+
+    try {
+      await client.reactions.remove({
+        channel: channelId,
+        name: "thinking_face",
+        timestamp: message.ts!,
+      });
+    } catch {}
+
+    const stickerMessage = await client.chat.postMessage({
+      channel: channelId,
+      thread_ts: message.ts,
+      text: formatSticker(emojis, width),
+    });
+
+    if (!stickerMessage.ok) throw Error("Couldn't send sticker message");
+    if (!stickerMessage.ts)
+      throw Error("Couldn't get timestamp of sticker message");
+
+    const permalink = (
+      await client.chat.getPermalink({
+        channel: channelId,
+        message_ts: stickerMessage.ts,
+      })
+    ).permalink;
+    if (!permalink) throw Error("Couldn't get permalink");
+
+    try {
+      await db.insert(stickers).values({
+        title: title,
+        creator: message.user,
+        emojis: emojis,
+        width: width,
+        height: height,
+        slackPermalink: permalink,
+      });
+    } catch (error) {
+      console.error("error saving sticker:", error);
+      await client.chat.postMessage({
+        channel: channelId,
+        thread_ts: message.ts,
+        text: "oops! there was an error saving your sticker to the database! please try again if you need it to be saved!",
+      });
+    }
+
     await client.chat.postMessage({
       channel: channelId,
       thread_ts: message.ts,
-      text: "oops! there was an error saving your sticker to the database! please try again if you need it to be saved!",
+      text: `<@${message.user}> Done!`,
     });
+
+    await client.chat.postMessage({
+      channel: channelId,
+      thread_ts: message.ts,
+      text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}\nTo delete this sticker, run: /delete-sticker ${title}`,
+    });
+  } catch {
+    await client.chat.postMessage({
+      channel: channelId,
+      thread_ts: message.ts,
+      text: "Sticker creation failed. Please contact the operator before retrying; some emoji may already have been uploaded.",
+    });
+  } finally {
+    reservedTitles.delete(title);
   }
-
-  await client.chat.postMessage({
-    channel: channelId,
-    thread_ts: message.ts,
-    text: `<@${message.user}> Done!`,
-  });
-
-  await client.chat.postMessage({
-    channel: channelId,
-    thread_ts: message.ts,
-    text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}\nTo delete this sticker, run: /delete-sticker ${title}`,
-  });
-
-  reservedTitles.delete(title);
 });
 
 // Regex matches `{digit}x{digit}`
-app.action(/\dx\d/, async ({ client, action, body, ack }) => {
+app.action(/^\d{1,2}x\d{1,2}$/, async ({ client, action, body, ack }) => {
   await ack();
 
   if (
@@ -654,12 +672,14 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
     body.type !== "block_actions" ||
     !body.actions[0] ||
     !body.channel ||
-    !body.message
+    !body.message ||
+    !body.message.thread_ts ||
+    !ALLOWED_CHANNELS.includes(body.channel.id)
   )
     return;
 
   const [width, height] = body.actions[0].action_id.split("x").map(Number);
-  if (!width || !height) return;
+  if (!width || !height || !validDimensions(width, height)) return;
 
   const message = (
     await client.conversations.history({
@@ -700,90 +720,104 @@ app.action(/\dx\d/, async ({ client, action, body, ack }) => {
     return;
   }
 
+  if (reservedTitles.size >= 2 || reservedTitles.has(title)) {
+    await client.chat.postEphemeral({
+      channel: body.channel.id,
+      user: body.user.id,
+      text: "The bot is busy creating stickers. Please try again shortly.",
+    });
+    return;
+  }
   reservedTitles.add(title);
-
-  await client.chat.delete({
-    channel: body.channel.id,
-    ts: body.message.ts,
-  });
-
-  // This reaction is supposed to show that the sticker is being processed
-  await client.reactions.add({
-    channel: body.channel.id,
-    name: "thinking_face",
-    timestamp: message.ts!,
-  });
-
-  console.log("creating sticker '", title, "' for", message.user);
-
-  const emojis = await createSticker({
-    fileUrl: file.url_private!,
-    teamDomain: body.team!.domain,
-    title: title,
-    width: width,
-    height: height,
-    channel: body.channel.id,
-    timestamp: message.ts!,
-    app: app,
-  });
-
   try {
-    await client.reactions.remove({
+    await client.chat.delete({
+      channel: body.channel.id,
+      ts: body.message.ts,
+    });
+
+    // This reaction is supposed to show that the sticker is being processed
+    await client.reactions.add({
       channel: body.channel.id,
       name: "thinking_face",
       timestamp: message.ts!,
     });
-  } catch {}
 
-  const stickerMessage = await client.chat.postMessage({
-    channel: body.channel.id,
-    thread_ts: message.ts,
-    text: formatSticker(emojis, width),
-  });
+    console.log("creating sticker '", title, "' for", message.user);
 
-  if (!stickerMessage.ok) throw Error("Couldn't send sticker message");
-  if (!stickerMessage.ts)
-    throw Error("Couldn't get timestamp of sticker message");
-
-  const permalink = (
-    await client.chat.getPermalink({
-      channel: body.channel.id,
-      message_ts: stickerMessage.ts,
-    })
-  ).permalink;
-  if (!permalink) throw Error("Couldn't get permalink");
-
-  try {
-    await db.insert(stickers).values({
+    const emojis = await createSticker({
+      fileUrl: file.url_private!,
       title: title,
-      creator: message.user,
-      emojis: emojis,
       width: width,
       height: height,
-      slackPermalink: permalink,
+      channel: body.channel.id,
+      timestamp: message.ts!,
+      app: app,
     });
-  } catch (error) {
-    console.error("error saving sticker:", error);
+
+    try {
+      await client.reactions.remove({
+        channel: body.channel.id,
+        name: "thinking_face",
+        timestamp: message.ts!,
+      });
+    } catch {}
+
+    const stickerMessage = await client.chat.postMessage({
+      channel: body.channel.id,
+      thread_ts: message.ts,
+      text: formatSticker(emojis, width),
+    });
+
+    if (!stickerMessage.ok) throw Error("Couldn't send sticker message");
+    if (!stickerMessage.ts)
+      throw Error("Couldn't get timestamp of sticker message");
+
+    const permalink = (
+      await client.chat.getPermalink({
+        channel: body.channel.id,
+        message_ts: stickerMessage.ts,
+      })
+    ).permalink;
+    if (!permalink) throw Error("Couldn't get permalink");
+
+    try {
+      await db.insert(stickers).values({
+        title: title,
+        creator: message.user,
+        emojis: emojis,
+        width: width,
+        height: height,
+        slackPermalink: permalink,
+      });
+    } catch (error) {
+      console.error("error saving sticker:", error);
+      await client.chat.postMessage({
+        channel: body.channel.id,
+        thread_ts: message.ts,
+        text: "oops! there was an error saving your sticker to the database! please try again if you need it to be saved!",
+      });
+    }
+
     await client.chat.postMessage({
       channel: body.channel.id,
       thread_ts: message.ts,
-      text: "oops! there was an error saving your sticker to the database! please try again if you need it to be saved!",
+      text: `<@${message.user}> Done!`,
     });
+
+    await client.chat.postMessage({
+      channel: body.channel.id,
+      thread_ts: message.ts,
+      text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}\nTo delete this sticker, run: /delete-sticker ${title}`,
+    });
+  } catch {
+    await client.chat.postMessage({
+      channel: body.channel.id,
+      thread_ts: message.ts,
+      text: "Sticker creation failed. Please contact the operator before retrying; some emoji may already have been uploaded.",
+    });
+  } finally {
+    reservedTitles.delete(title);
   }
-
-  await client.chat.postMessage({
-    channel: body.channel.id,
-    thread_ts: message.ts,
-    text: `<@${message.user}> Done!`,
-  });
-
-  await client.chat.postMessage({
-    channel: body.channel.id,
-    thread_ts: message.ts,
-    text: `P.S. You can access this sticker and many more on the website at ${env.BASE_URL}\nTo delete this sticker, run: /delete-sticker ${title}`,
-  });
-
-  reservedTitles.delete(title);
 });
 
 // it's a regex to allow for other names like `sticker-dev` to work
@@ -955,10 +989,14 @@ app.command(/\/delete-sticker.*/, async ({ command, ack, respond }) => {
 
   await respond("I'm deleting the sticker now.");
 
-  await deleteEmojis({
-    emojis: sticker.emojis,
-    teamDomain: command.team_domain,
-  });
+  try {
+    await deleteEmojis({ emojis: sticker.emojis });
+  } catch {
+    await respond(
+      "Deletion could not be completed. The sticker record has been kept. Older emoji may need proxy ownership backfill; contact the operator.",
+    );
+    return;
+  }
 
   await db.delete(stickers).where(eq(stickers.title, stickerTitle));
 

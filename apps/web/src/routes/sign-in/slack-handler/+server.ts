@@ -5,10 +5,12 @@ import {
   JWT_SIGNING_SECRET,
   SLACK_CLIENT_ID,
   SLACK_CLIENT_SECRET,
+  SLACK_TEAM,
 } from "$env/static/private";
 import jwt from "jsonwebtoken";
 
-import { eq } from "@repo/db";
+import { verifySlackIdentity } from "$lib/server/slack-identity";
+import { and, eq } from "@repo/db";
 import { db } from "@repo/db/client";
 import { authAttempt } from "@repo/db/schema";
 
@@ -19,25 +21,63 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
   const state = Number(url.searchParams.get("state"));
   if (!code || !state || Number.isNaN(state))
     return new Response("Invalid params", { status: 400 });
-  const result = await db.query.authAttempt.findFirst({
-    where: eq(authAttempt.state, state),
+  const attemptToken = cookies.get("oauth_attempt");
+  cookies.delete("oauth_attempt", { path: "/sign-in" });
+  if (!attemptToken) error(400, "Please start sign-in again");
+  let attempt;
+  try {
+    attempt = jwt.verify(attemptToken, JWT_SIGNING_SECRET, {
+      algorithms: ["HS256"],
+      audience: "slack-login",
+    });
+  } catch {
+    error(400, "Sign-in expired; please start again");
+  }
+  if (
+    typeof attempt === "string" ||
+    attempt.state !== state ||
+    typeof attempt.nonce !== "string"
+  )
+    error(400, "Invalid sign-in state");
+  // Consume atomically so parallel callbacks cannot reuse a login attempt.
+  const [result] = await db
+    .delete(authAttempt)
+    .where(
+      and(eq(authAttempt.state, state), eq(authAttempt.nonce, attempt.nonce)),
+    )
+    .returning();
+  if (!result) error(400, "Sign-in already used; please start again");
+
+  const slackReq = await fetch("https://slack.com/api/openid.connect.token", {
+    method: "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(10_000),
+    body: new URLSearchParams({
+      client_id: SLACK_CLIENT_ID,
+      client_secret: SLACK_CLIENT_SECRET,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: result.redirectUri,
+    }),
   });
-  if (!result) return new Response("Not found", { status: 404 });
-
-  const slackReq = await fetch(
-    `https://api.slack.com/api/openid.connect.token?client_id=${encodeURIComponent(SLACK_CLIENT_ID)}&client_secret=${encodeURIComponent(SLACK_CLIENT_SECRET)}&code=${encodeURIComponent(code)}&grant_type=authorization_code&redirect_uri=${encodeURIComponent(result.redirectUri)}`,
-  );
-
   const slackReqJSON = await slackReq.json();
-
-  if (!slackReq.ok || !slackReqJSON.ok) error(500, "Please try again");
-
-  const jwtData = jwt.decode(slackReqJSON.id_token);
-
-  if (!jwtData || typeof jwtData === "string") error(500, "Please try again");
-
-  if (jwtData.nonce !== result.nonce)
-    error(500, "Nonce verification failed, please try again");
+  if (
+    !slackReq.ok ||
+    !slackReqJSON.ok ||
+    typeof slackReqJSON.id_token !== "string"
+  )
+    error(502, "Please try again");
+  let jwtData;
+  try {
+    jwtData = await verifySlackIdentity(
+      slackReqJSON.id_token,
+      SLACK_CLIENT_ID,
+      SLACK_TEAM,
+      result.nonce,
+    );
+  } catch {
+    error(403, "Slack identity could not be verified for this workspace");
+  }
 
   cookies.set(
     "token",
@@ -56,7 +96,9 @@ export const GET: RequestHandler = async ({ url, cookies }) => {
     {
       path: "/",
       httpOnly: true,
-      maxAge: 7 * 24 * 60 * 60, // 7 days
+      secure: !dev,
+      sameSite: "lax",
+      maxAge: 2 * 24 * 60 * 60,
     },
   );
 

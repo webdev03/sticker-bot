@@ -11,15 +11,18 @@ export const handle: Handle = async ({ event, resolve }) => {
     return resolve(event);
   } else {
     try {
-      const session = jwt.verify(token, JWT_SIGNING_SECRET) as JWTData;
-      if (session !== null) {
-        event.cookies.set("token", token, {
-          path: "/",
-        });
+      const session = jwt.verify(token, JWT_SIGNING_SECRET, {
+        algorithms: ["HS256"],
+      }) as JWTData;
+      if (
+        session &&
+        typeof session === "object" &&
+        typeof session.user === "string"
+      ) {
         event.locals.auth = session;
       } else throw Error("Bad session");
     } catch {
-      event.cookies.delete(token, {
+      event.cookies.delete("token", {
         path: "/",
       });
       event.locals.auth = null;
