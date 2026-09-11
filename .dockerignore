@@ -1,0 +1,9 @@
+.git
+.env
+.env.*
+!.env.example
+node_modules
+**/node_modules
+**/.svelte-kit
+**/.vercel
+**/.turbo

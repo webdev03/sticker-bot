@@ -24,8 +24,9 @@
     "@repo/db": "workspace:*",
     "@slack/bolt": "^4.7.3",
     "@t3-oss/env-core": "^0.13.11",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.4",
     "zod": "^4.4.3"
   },
   "prettier": "@repo/prettier"
 }
+

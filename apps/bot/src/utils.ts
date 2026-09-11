@@ -6,6 +6,13 @@ import { sql } from "@repo/db";
 import { db } from "@repo/db/client";
 
 import { env } from "./env";
+import { emojiProxyRequest } from "./emoji-proxy.ts";
+import {
+  downloadSlackImage,
+  IMAGE_OPTIONS,
+  validateImageMetadata,
+  validateStickerInput,
+} from "./security.ts";
 
 async function updateEmojiCache() {
   if (!env.EMOJI_CACHE_UPDATE_URL || !env.EMOJI_CACHE_UPDATE_TOKEN) return;
@@ -67,76 +74,46 @@ export function isImageFile(mimeType: string): boolean {
 
 export const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export async function deleteEmojis({
-  emojis,
-  teamDomain,
-}: {
-  emojis: string[];
-  teamDomain: string;
-}) {
-  for (const emoji of emojis) {
-    const removeForm = new FormData();
-    removeForm.append("token", env.SLACK_USER_XOXC);
-    removeForm.append("name", emoji);
-
-    await fetch(`https://${teamDomain}.slack.com/api/emoji.remove`, {
-      method: "POST",
-      body: removeForm,
-      headers: {
-        Cookie: env.SLACK_COOKIE,
+export async function deleteEmojis({ emojis }: { emojis: string[] }) {
+  for (const name of emojis) {
+    await emojiProxyRequest(
+      env.SLACK_EMOJI_PROXY_URL,
+      env.SLACK_EMOJI_PROXY_TOKEN,
+      "remove",
+      {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
       },
-    });
+    );
   }
 }
 
 export async function uploadEmoji({
   emojiName,
-  teamDomain,
   image,
   type,
 }: {
   emojiName: string;
-  teamDomain: string;
-  image: Buffer<ArrayBuffer>; // don't ask why this works
+  image: Buffer<ArrayBuffer>;
   type: string;
 }) {
-  // logic is based from github.com/taciturnaxolotl/emojibot
-
+  if (image.byteLength > 128 * 1024)
+    throw new Error("Emoji exceeds the proxy's 128 KiB limit");
   const form = new FormData();
-
-  form.append("token", env.SLACK_USER_XOXC);
-  form.append("mode", "data");
   form.append("name", emojiName);
-  form.append("image", new Blob([image]), "image." + type);
-
-  const req = await fetch(`https://${teamDomain}.slack.com/api/emoji.add`, {
-    method: "POST",
-    body: form,
-    headers: {
-      Cookie: env.SLACK_COOKIE,
-    },
-  });
-  if (!req.ok) console.error(req.status, req.statusText, await req.text());
-  if (req.status === 429) {
-    // rate limit
-    await sleep(Number(req.headers.get("Retry-After") || "5") * 1000 + 250);
-    return await uploadEmoji({
-      emojiName: emojiName,
-      teamDomain: teamDomain,
-      image: image,
-      type: type,
-    });
-  }
-
-  // responsible sleeping
+  form.append("file", new Blob([image]), "image." + type);
+  await emojiProxyRequest(
+    env.SLACK_EMOJI_PROXY_URL,
+    env.SLACK_EMOJI_PROXY_TOKEN,
+    "upload",
+    { method: "POST", body: form },
+  );
   await sleep(250);
-
-  return;
 }
 
 export async function createSticker({
   fileUrl,
-  teamDomain,
   title,
   width,
   height,
@@ -145,7 +122,6 @@ export async function createSticker({
   app,
 }: {
   fileUrl: string;
-  teamDomain: string;
   title: string;
   width: number;
   height: number;
@@ -159,26 +135,20 @@ export async function createSticker({
     text: `Creating new ${width}x${height} sticker: "${title}"`,
   });
 
+  validateStickerInput(title, width, height);
   const image = sharp(
-    await (
-      await fetch(fileUrl, {
-        method: "GET",
-        headers: {
-          // We aren't using `Jimp.read()` because we need to pass the Authorization header
-          Authorization: "Bearer " + env.SLACK_BOT_TOKEN,
-        },
-      })
-    ).arrayBuffer(),
-    {
-      animated: true,
-    },
+    await downloadSlackImage(fileUrl, env.SLACK_BOT_TOKEN),
+    IMAGE_OPTIONS,
   );
   const imgMetadata = await image.metadata();
+  validateImageMetadata(imgMetadata);
   const imgWidth = imgMetadata.width;
   const imgHeight = imgMetadata.pageHeight || imgMetadata.height;
   const isAnimated = Boolean(imgMetadata.pages && imgMetadata.pages > 1);
 
-  let emojis: string[] = [];
+  if (width > imgWidth || height > imgHeight)
+    throw new Error("Sticker grid exceeds image dimensions");
+  const emojis: string[] = [];
 
   const startTime = Date.now();
 
@@ -229,7 +199,7 @@ export async function createSticker({
 
       const buf = await newImg.toBuffer();
 
-      const emojiName = `${title}-${x + 1}-${y + 1}-${randomChars()}`;
+      const emojiName = `${title}-${x + 1}-${y + 1}-${randomChars(8)}`;
       console.log(
         "trying to upload " + emojiName,
         "size:",
@@ -237,7 +207,6 @@ export async function createSticker({
       );
       await uploadEmoji({
         emojiName: emojiName,
-        teamDomain: teamDomain,
         image: Buffer.from(buf), // don't ask why this works
         type: (await newImg.metadata()).format,
       });

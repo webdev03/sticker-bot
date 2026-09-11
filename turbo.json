@@ -16,8 +16,8 @@
         "SLACK_APP_TOKEN",
         "SLACK_CLIENT_ID",
         "SLACK_CLIENT_SECRET",
-        "SLACK_USER_XOXC",
-        "SLACK_COOKIE",
+        "SLACK_EMOJI_PROXY_URL",
+        "SLACK_EMOJI_PROXY_TOKEN",
         "PUBLIC_SLACK_CHANNELS",
         "DATABASE_URL",
         "JWT_SIGNING_SECRET",
@@ -41,3 +41,4 @@
     }
   }
 }
+
